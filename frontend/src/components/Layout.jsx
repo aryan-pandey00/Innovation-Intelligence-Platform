@@ -3,9 +3,11 @@ import Nav from './Nav'
 
 export default function Layout() {
   return (
-    <>
+    <div className="shell">
       <Nav />
-      <Outlet />
-    </>
+      <main className="shell-main">
+        <Outlet />
+      </main>
+    </div>
   )
 }

@@ -22,6 +22,17 @@
   /* charts */
   --chart-1: #1e293b; --chart-2: #cca01a; --chart-3: #0d9488;
   --chart-4: #3b6ea5; --chart-5: #7c6bb0;
+  /* text measures — nine different `ch` values were once set rule by rule.
+
+     `--measure-caption` is wider because the 45-75ch rule is about prose read
+     *down*, where a long line makes the eye lose its place coming back. A caption
+     is one scanned line, and capping it at 76ch broke 21 of the app's 40 captions
+     onto a second line for no reading benefit. */
+  --measure-display: 26ch;  /* large hero headings, deliberately narrow */
+  --measure-tight: 62ch;    /* centred or emphasised lines */
+  --measure: 76ch;          /* one- or two-sentence descriptions */
+  --measure-wide: 88ch;     /* prose blocks: a bio, a recommendation */
+  --measure-caption: 96ch;  /* a scanned single line under a heading */
   /* shape */
   --radius: 10px; --radius-sm: 6px; --radius-pill: 999px;
   --shadow: 0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
@@ -37,23 +48,48 @@ h1 { font-size: 26px; margin-bottom: 20px; color: var(--navy); letter-spacing: -
 h2 { font-size: 19px; margin-bottom: 16px; color: var(--navy-700); }
 h3 { font-size: 15px; margin-bottom: 8px; color: var(--navy-700); }
 
+/* A wrapped description used to drop four words onto a second line and stop.
+   `balance` splits short text evenly instead of leaving that orphan; `pretty`
+   only fixes the last line, which is what longer prose needs. */
+h1, h2, h3, .page-sub, .card-sub, .stat-note, .field-help, .empty-note,
+.stat-label, .hint-bubble, .table-foot, .landing-hero p { text-wrap: balance; }
+.detail-bio, .chart-foot, .pathway-hero p, .reco-card p, .opp-desc,
+.score-context, .factor-takeaway { text-wrap: pretty; }
+
 .muted { color: var(--muted); }
 
 /* layout containers */
 .container { max-width: 440px; margin: 72px auto; padding: 40px; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-md); }
-.dashboard, .page { max-width: 960px; margin: 32px auto; padding: 0 24px; }
+.dashboard, .page { max-width: 1040px; margin: 34px auto; padding: 0 32px; }
+@media (max-width: 620px) { .dashboard, .page { padding: 0 18px; margin: 22px auto; } }
 
 /* forms */
+/* Bare element selector on purpose. Excluding radios here with
+   `:not([type=…])` raises this rule to (0,2,1), which silently outranks every
+   `.search-row input` / `.field > input` override in the file. Radios get their
+   own reset below instead. */
 input, select, textarea { width: 100%; padding: 11px 12px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: var(--surface); color: var(--ink); }
+/* Not text fields. Without this a radio inherits `width: 100%` above and takes the
+   whole flex row, leaving its label nowhere to sit but the next line — which is why
+   the register page's role options rendered as a column. (0,1,1) beats the base. */
+input[type="radio"], input[type="checkbox"] { width: auto; padding: 0; margin: 0;
+  border: none; background: none; border-radius: 0; }
+
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* A radio draws neither that border nor that shadow, so `outline: none` would leave
+   keyboard users with no visible focus at all on the role choice. */
+input[type="radio"]:focus-visible, input[type="checkbox"]:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 textarea { resize: vertical; }
 
 /* buttons */
-button { width: 100%; padding: 11px 16px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 14px; cursor: pointer; font-weight: 600; font-family: inherit; transition: background .15s; }
+/* `line-height` explicit, matching `.btn-quiet`/`.btn-solid`: inherited from the
+   body it is 1.55 against their 1.45, so two buttons side by side differed in
+   height and any change to the body would have resized every button. */
+button { width: 100%; padding: 11px 16px; background: var(--accent); color: var(--navy-900); border: none; border-radius: var(--radius-sm); font-size: 14px; line-height: 1.45; cursor: pointer; font-weight: 600; font-family: inherit; transition: background .15s; }
 button:hover { background: var(--accent-hover); }
 button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .btn-block { width: 100%; }
-.logout { width: auto; padding: 8px 16px; background: var(--danger); }
+.logout { width: auto; padding: 8px 16px; background: var(--danger); color: #fff; }
 .logout:hover { background: #b91c1c; }
 
 .link { text-align: center; margin-top: 16px; font-size: 14px; }
@@ -65,14 +101,288 @@ button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .error { color: var(--danger); margin-bottom: 12px; padding: 10px 12px; background: var(--danger-soft); border-radius: var(--radius-sm); font-size: 14px; }
 .status { padding: 10px 14px; background: var(--success-soft); color: var(--success); border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 14px; }
 
-/* top navigation (shared) */
-.nav { display: flex; justify-content: space-between; align-items: center; padding: 0 24px; height: 58px; background: var(--navy-900); box-shadow: var(--shadow); }
-.nav .brand { color: #fff; font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
-.nav .nav-links { display: flex; align-items: center; gap: 4px; }
-.navlink { color: #cbd5e1; text-decoration: none; font-weight: 500; font-size: 14px; padding: 8px 12px; border-radius: var(--radius-sm); transition: color .15s, background .15s; }
-.navlink:hover { color: #fff; background: rgba(255,255,255,.08); }
-.navlink.active { color: var(--accent); }
-.nav .user-name { color: #94a3b8; font-size: 13px; margin: 0 8px; }
+/* notices and chart footnotes */
+.notice { padding: 11px 14px; background: var(--warning-soft); color: var(--warning);
+          border-radius: var(--radius-sm); border: 1px solid #eeddba; font-size: 13.5px;
+          line-height: 1.5; margin-bottom: 16px; }
+/* Full width on purpose: capping this at --measure-caption capped its border-top
+   too, so the rule stopped short of the card edge and read as a stray line
+   floating under the content rather than as a separator. */
+.chart-foot { font-size: 12px; color: var(--muted); line-height: 1.5; margin-top: 12px;
+              padding-top: 12px; border-top: 1px solid var(--line); }
+.field-chips-wrap { margin: -6px 0 18px; }
+.field-chips-wrap .field-chips { margin: 0; }
+.field-chips-wrap .field-help { margin-top: 8px; }
+
+/* shared form pieces */
+/* The -2px top margin here was cancelling the input's own bottom margin. That
+   margin is now zero inside a `.field`, so this needs a real gap of its own. */
+.field-help { font-size: 12.5px; color: var(--muted); margin: 6px 0 7px; line-height: 1.45; max-width: var(--measure-caption); }
+.field-help.warn { color: var(--warning); }
+/* Where a field's terms are used, in place of the paragraph that explained it.
+   The mapping is the part that was unclear, and it fits on one line. */
+.field-routing { font-size: 12px; color: var(--muted); margin: -2px 0 8px; }
+.field-routing a { color: var(--navy-700); text-decoration: none; border-bottom: 1px solid var(--line); }
+.field-routing a:hover { color: var(--accent-hover); border-bottom-color: var(--accent); }
+.field-note { font-size: 12.5px; color: var(--warning); margin: 6px 0 0; }
+.optional { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.form-actions { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+.form-actions button { width: auto; padding: 10px 20px; }
+/* One box for both button variants, so a solid and a quiet button side by side
+   cannot differ in height. Patched property by property they drifted three ways,
+   each invisible until you zoomed in: no `border-radius` on `.btn-quiet` (sharp
+   as an <a>, rounded as a <button>), a 1px border on one and none on the other,
+   and an inherited 16px against a declared 14px. Everything that decides the box
+   is declared once here; the variants below set colour only. */
+.btn-quiet, .btn-solid {
+  width: auto; display: inline-block; text-decoration: none; font-family: inherit;
+  font-size: 14px; font-weight: 600; line-height: 1.45;
+  padding: 9px 18px; border: 1px solid transparent; border-radius: var(--radius-sm);
+}
+.btn-solid.lg, .btn-quiet.lg { padding: 12px 24px; font-size: 15px; }
+
+.btn-quiet { background: transparent; color: var(--navy-700); border-color: var(--line); }
+.btn-quiet:hover { background: var(--surface-2); border-color: var(--navy-700); color: var(--navy); }
+.btn-solid { background: var(--accent); color: var(--navy-900); }
+.btn-solid:hover { background: var(--accent-hover); }
+.add-manual { margin-top: 14px; font-size: 13px; padding: 8px 14px; }
+.save-ok { color: var(--success); font-size: 13px; margin-top: 8px; }
+
+/* One password reveal, not two. Edge and Chrome draw their own eye inside the
+   field; the app's toggle sat next to it, so the control appeared twice in those
+   browsers and once in Firefox. Suppress the native pair, keep ours. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input::-webkit-credentials-auto-fill-button,
+input::-webkit-textfield-decoration-container { display: none !important; visibility: hidden; }
+
+.input-affix { position: relative; display: flex; align-items: center; }
+.input-affix input { padding-right: 44px; margin-bottom: 0; }
+.affix-btn { position: absolute; right: 5px; width: auto; padding: 6px; background: transparent;
+             color: var(--muted); display: inline-flex; border-radius: var(--radius-sm); }
+.affix-btn:hover { background: var(--surface-2); color: var(--navy); }
+.affix-btn[aria-pressed="true"] { color: var(--accent-hover); }
+
+.role-choice { border: none; padding: 0; margin-bottom: 12px; }
+.role-choice legend { font-size: 13px; font-weight: 600; color: var(--navy-700); margin-bottom: 7px; padding: 0; }
+.role-opt { display: flex; gap: 10px; align-items: flex-start; padding: 10px 13px; border: 1px solid var(--line);
+            border-radius: var(--radius-sm); margin-bottom: 7px; cursor: pointer; background: var(--surface); }
+.role-opt:last-of-type { margin-bottom: 0; }
+.role-opt:hover { border-color: var(--accent); }
+.role-opt.sel { border-color: var(--accent); background: var(--accent-soft); }
+/* `width: auto` used to live here to undo the text-input rule's `width: 100%`.
+   Radios are excluded from that rule now, so only the optical nudge remains. */
+.role-opt input { margin: 3px 0 0; }
+.role-opt strong { display: block; font-size: 14px; color: var(--navy); }
+.role-hint { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+
+.account-readonly { padding-top: 18px; margin-top: 18px; border-top: 1px dashed var(--line); }
+.readonly-pair { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-size: 13.5px; }
+
+/* Auth: two panels rather than a card floating in empty space. The brand panel
+   carries a gradient and takes the larger share, and the form column is capped so
+   it reads as a column instead of a 380px form adrift in 950px of white. */
+.auth { display: grid; grid-template-columns: 1.25fr 1fr; min-height: 100vh; }
+.auth-brand { color: #cbd5e1; padding: 48px 56px; position: relative; overflow: hidden;
+              display: flex; flex-direction: column; justify-content: center;
+              background: linear-gradient(160deg, #0f1830 0%, var(--navy-900) 52%, #1a2744 100%); }
+/* A single soft highlight, so the panel has depth without a decorative graphic. */
+.auth-brand::after { content: ''; position: absolute; top: -18%; right: -14%; width: 60%; aspect-ratio: 1;
+                     border-radius: 50%; background: radial-gradient(circle, rgba(204,160,26,.13), transparent 68%);
+                     pointer-events: none; }
+.auth-brand > * { position: relative; z-index: 1; }
+.auth-logo { color: #fff; font-weight: 700; font-size: 17px; text-decoration: none; margin-bottom: 38px; }
+.auth-brand h2 { color: #fff; font-size: 29px; line-height: 1.28; margin-bottom: 0;
+                 max-width: var(--measure-display); letter-spacing: -.015em; }
+.auth-brand .hero-accent { margin: 20px 0 28px; }
+.auth-brand ul { list-style: none; padding: 0; margin: 0; }
+.auth-brand li { position: relative; padding-left: 24px; margin-bottom: 14px; font-size: 14.5px; line-height: 1.5; }
+.auth-brand li:last-child { margin-bottom: 0; }
+.auth-brand li::before { content: ''; position: absolute; left: 0; top: 8px; width: 9px; height: 9px;
+                         border-radius: 2px; background: var(--accent); }
+/* Centred with `margin: auto` on the child, not `place-items: center` on the
+   parent: a centred grid item taller than its container overflows equally in both
+   directions, and the part off the top cannot be scrolled back to. Auto margins
+   collapse to 0, so a tall form anchors to the top and scrolls normally. */
+.auth-panel { display: flex; padding: 32px; background: var(--ground); }
+.auth-form { width: 100%; max-width: 372px; margin: auto; }
+.auth-form h1 { margin-bottom: 6px; }
+.auth-form .page-sub { margin-bottom: 20px; }
+.auth-form button[type="submit"] { margin-top: 6px; }
+@media (max-width: 1180px) { .auth { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 860px) {
+  .auth { grid-template-columns: 1fr; }
+  .auth-brand { padding: 32px 26px 34px; }
+  .auth-brand h2 { font-size: 22px; max-width: none; }
+  .auth-brand .hero-accent { margin: 16px 0 20px; }
+  /* The value points used to be hidden below 860px, so a phone visitor saw a
+     heading and nothing else — they are the only thing explaining the product. */
+  .auth-brand li { font-size: 13.5px; margin-bottom: 10px; }
+}
+
+/* Chrome paints autofilled inputs pale blue, which is the one colour the palette
+   does not contain. The inset shadow is the only way to override it. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  box-shadow: inset 0 0 0 100px var(--surface);
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+}
+
+/* landing */
+.landing { min-height: 100vh; display: flex; flex-direction: column; }
+/* One dark band, one background — the same gradient and gold highlight the auth
+   panel carries, so the two front doors read as the same product. */
+.landing-top { position: relative; overflow: hidden;
+               background: linear-gradient(165deg, #0b1222 0%, var(--navy-900) 46%, #1a2744 100%); }
+.landing-top::after { content: ''; position: absolute; top: -32%; left: 50%; translate: -50% 0;
+                      width: 70%; aspect-ratio: 1; border-radius: 50%; pointer-events: none;
+                      background: radial-gradient(circle, rgba(204,160,26,.13), transparent 66%); }
+.landing-top > * { position: relative; z-index: 1; }
+.landing-nav { display: flex; justify-content: space-between; align-items: center;
+               padding: 16px 40px; }
+.landing-brand { color: #fff; font-weight: 700; font-size: 16px; }
+.landing-actions { display: flex; gap: 10px; align-items: center; }
+.landing-hero { padding: 76px 40px 68px; text-align: center; color: #cbd5e1; }
+.landing-hero h1 { font-size: 40px; line-height: 1.2; color: #fff; letter-spacing: -.02em; margin-bottom: 18px; }
+.landing-hero p { max-width: var(--measure-tight); margin: 0 auto 32px; font-size: 16px; line-height: 1.6; }
+.landing-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+/* `.btn-quiet` on a dark surface. Without this it inherits `color:
+   var(--navy-700)` and renders #334155 on #0f172a — 1.72:1, below every WCAG
+   threshold there is. One rule covers both dark-surface buttons at 17.85:1, with
+   a faint fill so it reads as a filled secondary beside the gold primary. */
+.landing-top .btn-quiet { color: #fff; border-color: rgba(255,255,255,.22);
+                          background: rgba(255,255,255,.08); }
+.landing-top .btn-quiet:hover { background: rgba(255,255,255,.16);
+                                border-color: rgba(255,255,255,.4); color: #fff; }
+.landing-modules { max-width: 1040px; margin: 0 auto; padding: 56px 32px 64px; }
+.landing-modules h2 { text-align: center; margin-bottom: 26px; }
+/* The two `.landing-modules .module-card` overrides that lived here are gone: the
+   landing page renders the shared ToolCards component now, so it inherits the
+   card styling instead of restyling it. */
+.landing-foot { margin-top: auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+                padding: 22px 40px; border-top: 1px solid var(--line); font-size: 13px; color: var(--navy-700); }
+@media (max-width: 620px) {
+  .landing-hero { padding: 46px 22px 40px; }
+  .landing-hero h1 { font-size: 27px; }
+  .landing-nav, .landing-foot { padding: 14px 22px; }
+}
+
+/* app shell: fixed sidebar + scrolling content
+   A top nav could not hold the module list; nine items crowded it. Grouping
+   them in a sidebar also states the platform's breadth on arrival. */
+.shell { display: flex; min-height: 100vh; }
+.side { position: sticky; top: 0; align-self: flex-start; width: 236px; flex: 0 0 236px; height: 100vh;
+        background: var(--navy-900); display: flex; flex-direction: column; overflow-y: auto; }
+.shell-main { flex: 1; min-width: 0; }
+
+.side-brand { display: block; padding: 20px 20px 18px; color: #fff; text-decoration: none;
+              font-weight: 700; font-size: 15px; line-height: 1.3; letter-spacing: -.01em; }
+/* Unscoped: this was `.side-brand .brand-accent` only, so "Intelligence" rendered
+   gold in the sidebar and plain white on the auth and landing pages — the wordmark
+   lost half its identity on the first page a visitor sees. */
+.brand-accent { color: var(--accent); }
+
+.side-group { padding: 8px 12px 0; }
+.side-group-label { padding: 0 8px 6px; font-size: 10px; font-weight: 700; letter-spacing: .09em;
+                    text-transform: uppercase; color: #64748b; }
+.navlink { display: flex; align-items: center; gap: 9px; color: #cbd5e1; text-decoration: none;
+           font-weight: 500; font-size: 13.5px; padding: 8px 10px; border-radius: var(--radius-sm);
+           transition: color .15s, background .15s; }
+.navlink:hover { color: #fff; background: rgba(255,255,255,.07); }
+.navlink.active { color: var(--navy-900); background: var(--accent); font-weight: 600; }
+/* each tool's own icon. The same dot repeated nine times was decoration; an icon
+   per tool carries information, and it is the icon its card shows. */
+.navlink { line-height: 1.3; }
+.navlink svg { flex: none; opacity: .72; transition: opacity .15s ease; }
+.navlink:hover svg { opacity: 1; }
+.navlink.active svg { opacity: 1; }
+
+.side-foot { margin-top: auto; padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.08); }
+.side-user { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center;
+          background: var(--accent); color: var(--navy-900); font-weight: 700; font-size: 13px; }
+.side-user-name { color: #fff; font-size: 13px; font-weight: 600; line-height: 1.25;
+                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-user-role { color: #64748b; font-size: 11px; text-transform: capitalize; }
+.side-foot .logout { width: 100%; padding: 7px; background: rgba(255,255,255,.08); color: #cbd5e1; font-size: 12.5px; }
+.side-foot .logout:hover { background: var(--danger); color: #fff; }
+
+@media (max-width: 820px) {
+  .shell { flex-direction: column; }
+  .side { position: static; width: auto; flex: none; height: auto; }
+  .side-group { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 10px; }
+  .side-group-label { width: 100%; }
+  .side-foot { display: flex; align-items: center; gap: 12px; }
+  .side-foot .logout { width: auto; }
+}
+
+/* page header */
+.page-head { margin-bottom: 22px; }
+.crumb { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+         color: var(--muted); margin-bottom: 7px; }
+.page-head h1 { margin-bottom: 6px; }
+.page-sub { color: var(--muted); font-size: 14px; max-width: var(--measure-caption); }
+
+/* info hint: keeps accuracy caveats without paragraphs of them */
+.hint-wrap { position: relative; display: inline-flex; margin-left: 5px; vertical-align: middle; }
+.hint-btn { width: 15px; height: 15px; padding: 0; border-radius: 50%; background: var(--surface-2);
+            color: var(--muted); border: 1px solid var(--line); font-size: 10px; font-weight: 700;
+            font-style: italic; line-height: 1; display: grid; place-items: center; cursor: help; }
+.hint-btn:hover { background: var(--navy); color: #fff; border-color: var(--navy); }
+.hint-bubble { position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);
+               width: max-content; max-width: 290px; padding: 9px 11px; background: var(--navy-900);
+               color: #e2e8f0; font-size: 12px; font-weight: 400; font-style: normal; line-height: 1.45;
+               text-align: left; text-transform: none; letter-spacing: 0; border-radius: var(--radius-sm);
+               box-shadow: var(--shadow-md); z-index: 20; }
+
+/* ranked list: for 5-10 item rankings a bar chart oversold */
+.ranked { list-style: none; margin: 0; padding: 0; }
+.ranked li { display: grid; grid-template-columns: 20px minmax(0, 1fr) var(--value-w, auto); gap: 10px;
+             align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+/* The bar and the share are both optional — a bar is dropped where the values sit
+   within a few percent of each other, since it then encodes nothing. */
+/* `--value-w` comes from the longest value in the list. It replaced `auto`,
+   which each row resolved against its own number, shunting the fixed-width bar
+   sideways — identical bars, ragged left edges. */
+.ranked li.has-bar { grid-template-columns: 20px minmax(0, 1fr) 90px var(--value-w, auto); }
+.ranked li.has-share { grid-template-columns: 20px minmax(0, 1fr) var(--value-w, auto) 52px; }
+.ranked li.has-bar.has-share { grid-template-columns: 20px minmax(0, 1fr) 90px var(--value-w, auto) 52px; }
+.ranked li:last-child { border-bottom: none; }
+.ranked-rank { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ranked-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.ranked-bar { height: 5px; background: var(--surface-2); border-radius: var(--radius-pill); overflow: hidden; }
+.ranked-bar span { display: block; height: 100%; background: var(--navy-700); border-radius: var(--radius-pill); }
+.ranked-value { font-variant-numeric: tabular-nums; color: var(--navy-700); font-weight: 600;
+                font-size: 13px; text-align: right; }
+.ranked-share { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; text-align: right; }
+@media (max-width: 620px) {
+  .ranked li, .ranked li.has-bar { grid-template-columns: 18px minmax(0,1fr) var(--value-w, auto); }
+  .ranked li.has-share, .ranked li.has-bar.has-share { grid-template-columns: 18px minmax(0,1fr) var(--value-w, auto) 48px; }
+  .ranked-bar { display: none; }
+}
+
+.empty-note { color: var(--muted); font-size: 13.5px; padding: 6px 0; }
+
+/* Rising topics show both ends of the comparison. The old single chip was pale
+   blue on an accent-and-navy palette, and carried a bare delta — "+3.2%" with
+   nothing saying 3.2% of what. */
+.ranked li.rising-row { grid-template-columns: minmax(0, 1fr) auto; }
+.rise-shares { display: inline-flex; align-items: baseline; gap: 7px;
+               font-variant-numeric: tabular-nums; }
+.rise-was { color: var(--muted); font-size: 12.5px; }
+.rise-arrow { color: var(--muted); font-size: 12px; opacity: .6; }
+.rise-now { color: var(--navy); font-weight: 700; font-size: 13.5px; }
+
+/* card head */
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
+.card-head h2 { margin-bottom: 0; }
+.card-sub { color: var(--muted); font-size: 13.5px; margin-top: 5px; max-width: var(--measure-caption); }
+.stat-label { display: block; }
+.stat-num.tone-good { color: var(--success); }
+.stat-num.tone-warn { color: var(--warning); }
 
 /* cards */
 .card { background: var(--surface); padding: 22px; border-radius: var(--radius); margin-bottom: 16px; box-shadow: var(--shadow); border: 1px solid var(--line); }
@@ -81,7 +391,13 @@ button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .role-badge { display: inline-block; padding: 4px 12px; background: var(--accent-soft); color: var(--accent-hover); border-radius: var(--radius-pill); font-size: 12px; font-weight: 600; }
 
 /* profile page */
-.field { margin-bottom: 14px; }
+/* The gap between two fields was counted twice: the input's own 12px plus
+   `.field`'s 14px, so the real distance from one input to the next label was 26px
+   and a form read as a stack of unrelated boxes. Inside a `.field` the wrapper
+   owns the spacing and the input contributes none. */
+.field { margin-bottom: 16px; }
+.field > input, .field > select, .field > textarea,
+.field > .input-affix > input { margin-bottom: 0; }
 .field label { display: block; font-size: 13px; font-weight: 600; color: var(--navy-700); margin-bottom: 6px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .grid-2 .field { margin-bottom: 0; }
@@ -90,18 +406,430 @@ button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .tag button { width: auto; padding: 0; background: none; color: var(--accent-hover); font-size: 16px; line-height: 1; }
 .tag button:hover { background: none; color: var(--danger); }
 .entry { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+
+/* Innovation map. The wrapper is an ordinary card: a gold left border on it
+   *and* white cards inside muddied both, and the cards are the structure.
+
+   Six tracks with span-2 cards, so five themes lay out 3 + 2 and the second row
+   widens to fill the width. Equal thirds left the sixth cell visibly empty.
+
+   The trailing-row spans are scoped to the desktop query rather than overridden
+   in the narrow ones: `:nth-child(4):nth-last-child(2) ~ .cluster-card` is a
+   (0,4,0) selector, which a later `.cluster-card` rule could not have outranked. */
+.cluster-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+.cluster-card { grid-column: span 3; display: flex; flex-direction: column;
+                border: 1px solid var(--line); border-radius: var(--radius-sm);
+                padding: 0 14px 14px; background: var(--surface); }
+@media (min-width: 1101px) {
+  .cluster-card { grid-column: span 2; }
+  /* Fill whatever the last row holds: 5 -> 3+2, 4 -> 2+2, 2 -> 2, 1 -> full. */
+  .cluster-card:nth-child(4):nth-last-child(2),
+  .cluster-card:nth-child(4):nth-last-child(2) ~ .cluster-card,
+  .cluster-card:first-child:nth-last-child(4),
+  .cluster-card:first-child:nth-last-child(4) ~ .cluster-card,
+  .cluster-card:first-child:nth-last-child(2),
+  .cluster-card:first-child:nth-last-child(2) ~ .cluster-card { grid-column: span 3; }
+  .cluster-card:only-child { grid-column: span 6; }
+}
+@media (max-width: 700px) { .cluster-card { grid-column: span 6; } }
+.cluster-head { display: flex; align-items: flex-start; gap: 11px; padding: 14px 0 10px; }
+.cluster-head > div { flex: 1; min-width: 0; }
+.cluster-head strong { display: block; font-size: 14px; color: var(--navy); line-height: 1.35; }
+/* `.cluster-rail` is gone: a 3px bar carrying a five-step navy ramp asked the
+   reader to compare shades in a sliver, and the cards are already ordered with
+   their shares stated. */
+.cluster-code { display: inline-block; margin-top: 5px; padding: 1px 6px;
+                border-radius: var(--radius-sm); background: var(--surface-2);
+                color: var(--muted); font-family: var(--mono); font-size: 10.5px;
+                font-weight: 600; letter-spacing: .02em; }
+.cluster-terms { display: block; margin-top: 4px; font-size: 11.5px; color: var(--muted);
+                 text-transform: capitalize; }
+.cluster-size { display: flex; flex-direction: column; align-items: flex-end; flex: none;
+                font-size: 16px; font-weight: 700; color: var(--navy); line-height: 1.1;
+                font-variant-numeric: tabular-nums; }
+.cluster-size small { font-size: 10.5px; font-weight: 600; color: var(--muted); margin-top: 3px;
+                      white-space: nowrap; }
+.cluster-samples { margin: 0; padding: 11px 0 0; list-style: none; border-top: 1px solid var(--line); }
+.cluster-samples li { position: relative; padding-left: 11px; font-size: 12.5px; color: var(--muted);
+                      line-height: 1.45; margin-bottom: 6px; }
+.cluster-samples li:last-child { margin-bottom: 0; }
+.cluster-samples li::before { content: ''; position: absolute; left: 0; top: 7px; width: 4px; height: 4px;
+                              border-radius: 50%; background: var(--line); }
+/* Two lines, full text on hover — the sample titles are unbounded and one ran
+   past 200 characters. */
+.cluster-samples li { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+                      overflow: hidden; }
+
+/* An icon in a card heading, from the module registry — the Innovation Map used
+   an emoji, the only one left after round 1 removed the rest as informal. */
+.card-head h2 > svg { vertical-align: -3px; margin-right: 7px; color: var(--accent-hover); }
+
+/* Recent patents. Ten rows of unbounded Chinese-filing titles read as a wall of
+   text; five rows clamped to two lines with the whole title on hover do not. */
+.patent-row { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.patent-row:last-child { border-bottom: none; }
+.patent-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+                overflow: hidden; font-size: 14px; font-weight: 600; color: var(--navy);
+                text-decoration: none; line-height: 1.45; }
+.patent-title:hover { text-decoration: underline; }
+.patent-meta { font-size: 12px; color: var(--muted); margin-top: 5px; }
+
+/* Lifecycle as a position on a track. Three bordered boxes with the active one
+   filled read as a segmented control — "pick one" rather than "you are here". */
+.track { position: relative; display: flex; justify-content: space-between; margin: 6px 0 4px; padding: 0 4px; }
+/* The unfilled remainder was --surface-2 on a white card: 1.11:1, invisible, so
+   a progress track read as complete. The fill arithmetic was never wrong.
+
+   Gold cannot fix it — mid-luminance, it reaches 1.79:1 against a light track and
+   cannot reach 3:1 against any track light enough to read as "not yet". Navy does
+   it at 9.7:1, so progress is navy and gold stays on the current-stage dot. */
+.track-line { position: absolute; left: 14px; right: 14px; top: 4px; height: 5px;
+              background: #cbd3df; border-radius: 3px; }
+.track-fill { display: block; height: 100%; background: var(--navy); border-radius: 3px;
+              transition: width .4s ease; }
+.track-point { position: relative; display: flex; flex-direction: column; align-items: center;
+               gap: 8px; flex: 1; }
+.track-point:first-child { align-items: flex-start; }
+.track-point:last-child { align-items: flex-end; }
+.track-dot { width: 13px; height: 13px; border-radius: 50%; background: var(--surface);
+             border: 3px solid #cbd3df; }
+.track-point.reached .track-dot { border-color: var(--navy); }
+.track-point.here .track-dot { background: var(--accent); border-color: var(--accent);
+                               box-shadow: 0 0 0 4px rgba(204,160,26,.18); }
+.track-label { font-size: 12.5px; color: var(--muted); }
+.track-point.here .track-label { color: var(--navy); font-weight: 600; }
+/* Uncapped: one generated sentence from a fixed set of four, the longest about
+   120 characters. Capping it at --measure broke a line the card has room for twice
+   over — the early-wrap defect the measure tokens exist to prevent, caused by the
+   token itself. */
+.stage-reason { margin-top: 18px; color: var(--navy-700); font-size: 14px; line-height: 1.6; }
+
+/* How ownership is spread */
+/* Uncapped. Any measure stopped it short of the strip directly beneath, which
+   reads as a ragged edge; three short clauses over two lines do not need the
+   protection a measure gives sustained prose. */
+.ip-finding { color: var(--navy-700); font-size: 14.5px; line-height: 1.6; }
+.ip-finding strong { color: var(--navy); }
+.ip-strip { display: flex; height: 10px; border-radius: var(--radius-pill); overflow: hidden;
+            margin: 18px 0 12px; background: var(--surface-2); }
+/* Shares under 4% are folded into one "Other" before they get here (see foldMix),
+   so nothing renders as a sliver with a full legend entry beside it. The floor is
+   a backstop for the folded segment itself. */
+.ip-seg { display: block; height: 100%; min-width: 4px; }
+/* one hue stepped by size, matching the Innovation Map treatment */
+.ip-seg-0 { background: #1e293b; }
+.ip-seg-1 { background: #4a5b73; }
+.ip-seg-2 { background: #8494a8; }
+.ip-seg-3 { background: #b6c1cd; }
+.ip-seg-4 { background: #d8dee6; }
+.ip-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 0; margin: 0 0 20px; }
+.ip-legend li { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); }
+.ip-legend strong { color: var(--navy); font-variant-numeric: tabular-nums; }
+.ip-dot { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+
+/* The `.org-*` name grid was removed with the list it laid out: Patent Landscape
+   already renders those names, from the same array, in a ranked list. */
+
+/* where to go next, so an analysis page does not end in a dead stop */
+.next-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 4px; }
+@media (max-width: 700px) { .next-row { grid-template-columns: 1fr; } }
+.next-card { display: flex; align-items: center; gap: 12px; padding: 15px 18px; background: var(--surface);
+             border: 1px solid var(--line); border-radius: var(--radius); text-decoration: none;
+             color: var(--navy-700); box-shadow: var(--shadow);
+             transition: border-color .15s ease, box-shadow .15s ease; }
+.next-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+.next-card svg { flex: none; color: var(--accent-hover); }
+.next-card span { display: flex; flex-direction: column; font-size: 12.5px; color: var(--muted); }
+.next-card strong { font-size: 14px; color: var(--navy); margin-bottom: 2px; }
+
+/* dashboard */
+.hero { background: linear-gradient(120deg, var(--navy-900) 0%, var(--navy) 70%); color: #fff; border-radius: var(--radius); padding: 30px 32px; margin-bottom: 22px; box-shadow: var(--shadow-md); }
+.hero h1 { color: #fff; margin: 0 0 8px; font-size: 27px; }
+.hero-sub { color: #cbd5e1; font-size: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.hero .role-badge { background: rgba(255,255,255,.14); color: #fff; }
+.hero-accent { height: 3px; width: 56px; background: var(--accent); border-radius: 2px; margin-top: 16px; }
+.hero-cta { margin-top: 18px; }
+.hero-cta button { width: auto; padding: 11px 22px; }
+
+.dash-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+@media (max-width: 860px) { .dash-grid { grid-template-columns: 1fr; } }
+
+/* .card-head lives with the shared Card primitive above; the dashboard's own
+   copy used to redeclare it here and win the cascade, so Card's spacing was
+   silently different on every other page. */
+
+.match-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.match-row:last-child { border-bottom: none; }
+.match-row .m-title { font-weight: 600; color: var(--navy); font-size: 14px; }
+.match-row .m-agency { color: var(--muted); font-size: 12px; margin-top: 2px; }
+/* amount, deadline and eligibility state — the facts that make a row a decision */
+.match-meta { color: var(--navy-700); font-size: 12px; margin-top: 5px; }
+.match-score { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+/* `.match-weak`, `.weak-chip` and `.match-more` were here. The percentage is
+   already the ranking, so greying the third row and labelling it "weak" stated
+   the same thing a third time, and the footer under it duplicated the header's
+   "View all". */
+
+.meter { height: 8px; background: var(--surface-2); border-radius: var(--radius-pill); overflow: hidden; margin: 10px 0 6px; }
+.meter-fill { height: 100%; background: var(--accent); border-radius: var(--radius-pill); }
+.check-list { list-style: none; padding: 0; margin: 14px 0 0; }
+.check-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 5px 0; }
+.check-list .done { color: var(--success); font-weight: 700; }
+.check-list .todo { color: var(--muted); }
+/* What a finished profile still has to say, so the card carries content to the
+   bottom instead of ending on the last tick. */
+.profile-foot { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.profile-driving { font-size: 12.5px; color: var(--navy-700); line-height: 1.6; }
+/* A count and its unit are one thing, so the line breaks between items rather
+   than after "1", which left "technology area" alone on the next line. */
+.term-count { white-space: nowrap; }
+.term-sep { color: var(--muted); }
+.profile-gap { font-size: 12.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+/* A caption ending in a call to action gives the link its own line: inline it
+   wrapped mid-phrase, so "Add it in / Settings →" read as two half-links rather
+   than one thing to click. `fit-content` keeps the hover underline on the text. */
+.link-block { display: block; margin-top: 5px; width: fit-content; }
+
+/* Five cards in a 3-column track left an empty sixth slot. A six-column track
+   with each card spanning 2, and the last two spanning 3, fills the second row
+   evenly so the block reads as deliberate. */
+/* Six tracks, span-2 cards: three per row, and the last row widens to fill
+   whatever it holds. Written as counts rather than `:nth-child(4), :nth-child(5)`,
+   which hard-coded the five-card era and left the sixth card a third-width orphan
+   beside two half-width ones. */
+.module-cards { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-top: 20px; }
+.module-card { grid-column: span 2; }
+.module-card:nth-child(4):nth-last-child(2),
+.module-card:nth-child(4):nth-last-child(2) ~ .module-card,
+.module-card:first-child:nth-last-child(4),
+.module-card:first-child:nth-last-child(4) ~ .module-card,
+.module-card:first-child:nth-last-child(2),
+.module-card:first-child:nth-last-child(2) ~ .module-card { grid-column: span 3; }
+.module-card:only-child { grid-column: span 6; }
+@media (max-width: 980px) {
+  .module-cards { grid-template-columns: repeat(2, 1fr); }
+  .module-card { grid-column: span 1 !important; }
+}
+@media (max-width: 620px) { .module-cards { grid-template-columns: 1fr; } }
+
+.module-card { position: relative; display: block; background: var(--surface); border: 1px solid var(--line);
+               border-radius: var(--radius); padding: 20px; text-decoration: none; box-shadow: var(--shadow);
+               transition: border-color .15s, box-shadow .15s; }
+.module-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+/* the icon in a tinted tile — `.mc-icon` was still styled here but nothing drew
+   an icon after the emoji were removed, which is why the cards read as text */
+.module-card .mc-icon { display: grid; place-items: center; width: 38px; height: 38px;
+                        border-radius: var(--radius-sm); background: var(--accent-soft);
+                        color: var(--accent-hover); }
+.module-card .mc-title { display: block; font-weight: 600; color: var(--navy); margin: 13px 0 5px; font-size: 15px; }
+.module-card .mc-desc { display: block; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.module-card .mc-go { position: absolute; top: 20px; right: 20px; color: var(--line); font-size: 17px;
+                      transition: transform .18s ease, color .18s ease; }
+.module-card:hover .mc-go { color: var(--accent); transform: translateX(3px); }
+.section-label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 6px 0 14px; }
+
+/* innovation scoring */
+.score-hero { display: flex; gap: 28px; align-items: center; }
+.big-score { font-size: 54px; font-weight: 800; color: var(--navy); line-height: 1; }
+.big-score small { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 8px; text-transform: uppercase; letter-spacing: .04em; }
+.big-score.tone-good { color: var(--success); }
+.big-score.tone-warn { color: var(--accent-hover); }
+.rating-pill { display: inline-block; padding: 5px 14px; border-radius: var(--radius-pill);
+               font-weight: 700; font-size: 13px; background: var(--accent-soft); color: var(--accent-hover); }
+/* At --measure-tight (62ch) two sentences broke over three lines in a column with
+   room for two, and the taller block pushed the score below the rating pill.
+   Still measured — this is prose — just at the width prose blocks use. */
+.score-context { color: var(--muted); font-size: 13.5px; line-height: 1.55; margin-top: 10px; max-width: var(--measure-wide); }
+
+/* Score breakdown — five rings on one scale. Every bar version failed the same
+   way: a length means nothing until you know what its track is worth, so the card
+   had to print that too, then the score, the weight and the leftover — four
+   numbers on two scales per factor. A ring needs no track label. The circle is the
+   100 and the arc is the score, leaving only the share to state, in words. */
+.factor-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+@media (max-width: 1120px) { .factor-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 720px)  { .factor-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 430px)  { .factor-grid { grid-template-columns: 1fr; } }
+
+/* Column, so a name that wraps to two lines pushes nothing out of line: the share
+   is held to the bottom of an equal-height row instead of floating up. */
+.factor { display: flex; flex-direction: column; text-align: center; padding: 20px 11px 16px;
+          background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.gauge-wrap { position: relative; display: block; width: 84px; height: 84px; margin: 0 auto 13px; }
+.gauge { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+.gauge circle { fill: none; stroke-width: 7; }
+.gauge-track { stroke: #dde3ec; }
+.gauge-fill { stroke: var(--navy); stroke-linecap: round; transition: stroke-dashoffset .5s ease; }
+/* Under half its scale a factor is undeveloped, not wrong, so it goes grey
+   rather than red, and the printed number carries the meaning anyway — nothing
+   rests on colour alone. --muted holds 3.5:1 against the track; gold cannot reach
+   3:1 on a light track at any weight. */
+.gauge.low .gauge-fill { stroke: var(--muted); }
+.gauge-val { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+             font-size: 24px; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+.factor-name { display: inline-flex; align-items: center; justify-content: center;
+               font-size: 13px; font-weight: 600; color: var(--navy); line-height: 1.35; }
+.factor-share { display: block; margin-top: auto; padding-top: 6px; font-size: 11.5px;
+                color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* The conclusion, in words — gold as an accent on a finding, never as an encoding
+   of magnitude. */
+.factor-takeaway { margin-top: 20px; padding: 12px 16px; background: var(--accent-soft);
+                   border-left: 3px solid var(--accent);
+                   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+                   font-size: 13.5px; line-height: 1.6; color: var(--navy-700);
+                   max-width: var(--measure-caption); }
+.factor-takeaway strong { color: var(--navy); font-weight: 600; }
+
+/* Six facts in an auto-fit track landed 4 + 2, leaving two empty cells — the same
+   defect as the tool cards. An explicit 3 x 2 fills evenly. */
+.fact-list { display: grid; grid-template-columns: repeat(3, 1fr);
+             gap: 2px 24px; margin: 0; }
+@media (max-width: 820px) { .fact-list { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .fact-list { grid-template-columns: 1fr; } }
+.fact-list > div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0;
+                   border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.fact-list dt { color: var(--muted); }
+.fact-list dd { margin: 0; font-weight: 600; color: var(--navy); font-variant-numeric: tabular-nums; }
+
+/* The recommended pathway is the headline of this tab, so it gets the app's hero
+   treatment rather than a white card with a green stripe — that green was one of
+   two stray semantic colours used decoratively. */
+.pathway-hero { background: linear-gradient(120deg, var(--navy-900) 0%, var(--navy) 72%); color: #cbd5e1;
+                border-radius: var(--radius); padding: 26px 30px; margin-bottom: 24px;
+                box-shadow: var(--shadow-md); }
+.pathway-eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+                   color: var(--accent); }
+.pathway-hero h2 { color: #fff; font-size: 24px; margin: 9px 0 10px; }
+.pathway-hero p { color: #cbd5e1; font-size: 14.5px; line-height: 1.65; max-width: var(--measure); }
+/* the readings that chose this pathway, so it shows its work */
+.pathway-signals { display: flex; flex-wrap: wrap; gap: 10px 34px; margin: 20px 0 0;
+                   padding-top: 18px; border-top: 1px solid rgba(255,255,255,.12); }
+.pathway-signals dt { font-size: 11.5px; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+.pathway-signals dd { margin: 3px 0 0; font-size: 15px; font-weight: 600; color: #fff;
+                      font-variant-numeric: tabular-nums; }
+
+/* Grouped by urgency. Five one-off category labels grouped nothing, and a single
+   2-column grid with five cards left one alone beside an empty half-row. */
+.reco-group { margin-bottom: 26px; }
+.reco-group:last-child { margin-bottom: 0; }
+.reco-group-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.reco-group-head h3 { margin: 0; font-size: 15px; color: var(--navy); }
+.reco-group-head span { font-size: 12.5px; color: var(--muted); }
+.reco-grid { display: grid; gap: 14px; }
+.reco-grid.cols-1 { grid-template-columns: 1fr; }
+.reco-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.reco-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 900px) { .reco-grid.cols-3 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 700px) {
+  .reco-grid, .reco-grid.cols-2, .reco-grid.cols-3 { grid-template-columns: 1fr; }
+  .score-hero { flex-direction: column; align-items: flex-start; gap: 14px; }
+}
+.reco-card { display: flex; flex-direction: column; border: 1px solid var(--line);
+             border-radius: var(--radius); padding: 18px; background: var(--surface);
+             box-shadow: var(--shadow); }
+.reco-card h4 { margin: 0 0 12px; font-size: 14.5px; color: var(--navy); font-weight: 600; }
+.reco-card p { font-size: 13.5px; color: var(--navy-700); line-height: 1.6; }
+
+/* The figure leads. A card whose first element is a number reads as a finding;
+   the same number inside a sentence has to be hunted for. */
+.reco-stat { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.reco-stat strong { font-size: 24px; font-weight: 700; color: var(--navy);
+                    line-height: 1.1; font-variant-numeric: tabular-nums; }
+.reco-stat span { font-size: 12.5px; color: var(--muted); }
+.reco-facts { margin-top: 5px; font-size: 12px; color: var(--muted);
+              font-variant-numeric: tabular-nums; }
+.reco-reading { margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--line);
+                font-size: 13px; }
+/* The instruction, marked so it is not mistaken for more description. Gold as an
+   accent on the conclusion — never as an encoding of magnitude. */
+.reco-action { margin-top: 11px; padding-left: 13px; position: relative;
+               font-size: 13px; font-weight: 600; color: var(--navy); }
+.reco-action::before { content: ''; position: absolute; left: 0; top: 6px;
+                       width: 3px; height: calc(100% - 10px); min-height: 11px;
+                       background: var(--accent); border-radius: 2px; }
+/* Three organisations were a comma run inside a sentence, one of them 56
+   characters long. A list is what the content already was. */
+.reco-items { list-style: none; margin: 12px 0 0; padding: 12px 0 0;
+              border-top: 1px solid var(--line); }
+.reco-items li { display: grid; grid-template-columns: 1fr auto; gap: 0 10px;
+                 padding: 7px 0; border-bottom: 1px solid var(--line); }
+.reco-items li:last-child { border-bottom: none; padding-bottom: 0; }
+.reco-item-name { font-size: 13px; font-weight: 500; color: var(--navy);
+                  line-height: 1.35; min-width: 0; overflow-wrap: break-word; }
+.reco-item-meta { grid-column: 1; font-size: 11.5px; color: var(--muted); }
+.reco-item-value { grid-row: 1 / span 2; align-self: center; font-size: 13px;
+                   font-weight: 600; color: var(--navy-700);
+                   font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* every card except the terminal one now goes somewhere */
+.reco-link { margin-top: auto; padding-top: 12px; font-size: 13px; align-self: flex-start; }
+
+/* micro-interactions — subtle, premium, no bounce */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes meterGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.dashboard > * { animation: fadeInUp .4s ease both; }
+.dashboard > *:nth-child(2) { animation-delay: .05s; }
+.dashboard > *:nth-child(3) { animation-delay: .1s; }
+.dashboard > *:nth-child(4) { animation-delay: .15s; }
+.dashboard > *:nth-child(5) { animation-delay: .2s; }
+
+/* A stat card is not a link, so it does not lift or take a gold border on hover.
+   It did both, which is why whichever card sat under the cursor read as selected
+   while its siblings did not. */
+.stat-card { transition: box-shadow .18s ease; }
+.stat-card:hover { box-shadow: var(--shadow-md); }
+
+.module-card { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.module-card:hover { transform: translateY(-3px); }
+
+.opp-card, .cluster-card { transition: transform .18s ease, box-shadow .18s ease; }
+.opp-card:hover, .cluster-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+.match-row { transition: background .15s ease; border-radius: var(--radius-sm); }
+.match-row:hover { background: var(--surface-2); }
+
+.meter-fill { transform-origin: left; animation: meterGrow .7s ease both; }
+
+button { transition: background .15s ease, transform .1s ease; }
+button:active { transform: translateY(1px); }
+.mini-view, .mini-import, .mini-del { transition: background .15s ease, transform .1s ease; }
+.mini-view:active, .mini-import:active, .mini-del:active { transform: translateY(1px); }
+
+.user-table tbody tr { transition: background .12s ease; }
+.user-table tbody tr:hover { background: var(--surface-2); }
+
+.navlink { transition: color .15s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard > *, .meter-fill { animation: none !important; }
+  .module-card:hover, .opp-card:hover, .cluster-card:hover { transform: none; }
+}
 .entry:last-child { border-bottom: none; }
 .entry .muted { font-size: 13px; margin-top: 4px; }
 .subform { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--line); }
 .subform button { margin-top: 4px; }
 
+/* save button — glows while there are unsaved edits, fades when nothing changed */
+.save-btn { transition: background .15s ease, transform .1s ease, opacity .2s ease, box-shadow .2s ease; }
+.save-btn:not(:disabled) { animation: saveGlow 1.9s ease-in-out infinite; }
+.save-btn:disabled { background: var(--accent); opacity: .4; cursor: default; box-shadow: none; animation: none; }
+.save-btn:disabled:hover { background: var(--accent); }
+@keyframes saveGlow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(204,160,26,.18), 0 2px 10px rgba(204,160,26,.25); }
+  50%      { box-shadow: 0 0 0 5px rgba(204,160,26,.10), 0 4px 18px rgba(204,160,26,.45); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .save-btn:not(:disabled) { animation: none; box-shadow: 0 0 0 3px rgba(204,160,26,.18), 0 2px 10px rgba(204,160,26,.3); }
+}
+
 /* small buttons */
 .mini-del { width: auto; padding: 6px 12px; background: var(--danger-soft); color: var(--danger); font-size: 13px; }
 .mini-del:hover { background: #fbd5d5; }
 .mini-del:disabled { background: var(--surface-2); color: #cbd5e1; cursor: default; }
-.mini-view { width: auto; padding: 6px 14px; background: var(--navy); font-size: 13px; white-space: nowrap; }
+.mini-view { width: auto; padding: 6px 14px; background: var(--navy); color: #fff; font-size: 13px; white-space: nowrap; }
 .mini-view:hover { background: var(--navy-700); }
-.mini-import { width: auto; padding: 6px 14px; background: var(--success); font-size: 13px; white-space: nowrap; }
+.mini-import { width: auto; padding: 6px 14px; background: var(--success); color: #fff; font-size: 13px; white-space: nowrap; }
 .mini-import:hover { background: #12692f; }
 .mini-import:disabled { background: #a7d9b8; color: #12692f; cursor: default; }
 
@@ -119,6 +847,8 @@ button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .close-results-btn { width: auto; padding: 5px 14px; background: transparent; color: var(--muted); border: 1px solid var(--line); font-size: 13px; border-radius: var(--radius-sm); font-weight: 500; }
 .close-results-btn:hover { background: var(--surface-2); color: var(--navy); }
 .search-results-panel .result { padding: 10px 14px; }
+.results-scroll { max-height: 460px; overflow-y: auto; }
+.results-scroll .result:last-child { border-bottom: none; }
 
 /* account section */
 .account-card { border: 1px solid var(--line); }
@@ -127,16 +857,52 @@ button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .delete-account-btn { width: auto; padding: 9px 18px; background: transparent; color: var(--danger); border: 1px solid #f3a9a9; font-weight: 600; white-space: nowrap; }
 .delete-account-btn:hover { background: var(--danger-soft); border-color: var(--danger); }
 
+/* rename row inside the Account card */
+.account-name-row { align-items: flex-start; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px dashed var(--line); }
+.account-name-edit { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.account-name-edit input { width: 250px; margin-bottom: 0; }
+.account-name-edit .save-btn { width: auto; padding: 10px 18px; white-space: nowrap; }
+@media (max-width: 700px) {
+  .account-name-row, .account-name-edit { flex-direction: column; align-items: stretch; }
+  .account-name-edit input, .account-name-edit .save-btn { width: 100%; }
+}
+
 /* stat cards & tables (admin, manager, trends) */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
 .stat-card { background: var(--surface); padding: 18px; border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--line); font-size: 13px; color: var(--muted); text-align: center; }
 .stat-num { display: block; font-size: 28px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+/* qualifier under a headline number — e.g. how much of a corpus was sampled */
+.stat-note { display: block; margin-top: 5px; font-size: 11px; color: var(--muted); opacity: .85; line-height: 1.35; }
 .table-wrap { overflow-x: auto; }
 .user-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .user-table th { text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--line); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
 .user-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .role-select { width: auto; padding: 6px 8px; margin: 0; font-size: 13px; }
 .role-select:disabled { background: var(--surface-2); color: #94a3b8; cursor: default; }
+.user-table td:last-child, .user-table th:last-child { text-align: right; }
+.cell-note { font-size: 12.5px; color: var(--muted); }
+.table-search { width: 250px; margin: 0; padding: 8px 12px; font-size: 13.5px; }
+.table-foot { margin: 14px 0 0; font-size: 13px; color: var(--muted); }
+.super-tag { margin-left: 7px; padding: 1px 7px; border-radius: var(--radius-pill); background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; vertical-align: middle; }
+.role-badge.role-locked { background: var(--warning-soft); color: var(--warning); }
+.row-protected { background: rgba(204,160,26,.05); }
+/* the open row and its detail panel share the accent so the connection between
+   the click and the panel further down the page is visible */
+.row-open, .user-table tbody tr.row-open:hover { background: var(--accent-soft); }
+.row-open td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+@media (max-width: 720px) { .table-search { width: 100%; } }
+
+/* admin's read-only view of someone's portfolio */
+.profile-detail h3 { margin: 22px 0 8px; font-size: 15px; }
+.detail-headline { font-weight: 600; color: var(--navy); }
+.detail-bio { margin-top: 6px; color: var(--muted); font-size: 14px; max-width: var(--measure-wide); }
+.detail-org { margin-top: 6px; color: var(--muted); font-size: 13px; }
+.detail-none { color: #94a3b8; font-style: italic; font-weight: 400; font-size: 13px; }
+.tag-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tag-row > strong { font-size: 13px; margin-right: 2px; }
+.tag-none { color: #94a3b8; font-style: italic; font-size: 13px; }
+.entry-stacked { display: block; }
+.entry-meta { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
 
 /* funding page */
 .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
@@ -147,12 +913,22 @@ button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .search-row { display: flex; gap: 8px; align-items: flex-start; }
 .search-row input { margin-bottom: 16px; }
 .search-row button { width: auto; padding: 11px 26px; white-space: nowrap; }
+.field-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -6px 0 18px; }
+.field-chips .fc-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-right: 2px; }
+.field-chip { padding: 5px 12px; border: 1px solid var(--line); background: var(--surface); color: var(--navy-700); border-radius: var(--radius-pill); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; width: auto; transition: background .15s, border-color .15s, color .15s; }
+.field-chip:hover { border-color: var(--accent); color: var(--navy); }
+.field-chip.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+/* The overflow toggle is not a term, so it does not look like one. */
+.field-chip.chip-more { border-style: dashed; color: var(--muted); font-weight: 600; }
+.field-chip.chip-more:hover { color: var(--navy); }
 .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--navy-700); margin-bottom: 8px; cursor: pointer; }
 .checkbox-row input { width: auto; margin: 0; }
 .opp-card { background: var(--surface); padding: 20px; border-radius: var(--radius); margin-bottom: 14px; box-shadow: var(--shadow); border: 1px solid var(--line); }
 .opp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .opp-title { font-size: 16px; font-weight: 600; color: var(--navy); text-decoration: none; }
 .opp-title:hover { text-decoration: underline; }
+.live-badge { display: inline-block; margin-left: 8px; padding: 2px 9px; background: var(--success-soft); color: var(--success); border-radius: var(--radius-pill); font-size: 11px; font-weight: 600; vertical-align: middle; }
+.awarded-tag { display: inline-block; margin-left: 6px; padding: 2px 9px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); border-radius: var(--radius-pill); font-size: 11px; font-weight: 600; vertical-align: middle; }
 .opp-desc { color: var(--navy-700); font-size: 14px; margin: 10px 0; }
 .opp-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .src-tag { padding: 3px 10px; background: var(--navy); color: #fff; border-radius: var(--radius-pill); font-size: 12px; font-weight: 500; }
@@ -161,9 +937,13 @@ button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .score-pill.score-ineligible { background: var(--surface-2); color: #94a3b8; }
 .matched { margin-top: 12px; font-size: 13px; color: var(--navy-700); }
 .match-chip { display: inline-block; padding: 2px 8px; margin: 0 4px 4px 0; background: var(--success-soft); color: var(--success); border-radius: var(--radius-pill); font-size: 12px; }
-.elig-note { margin-top: 10px; font-size: 12px; padding: 6px 10px; border-radius: var(--radius-sm); }
+.elig-note { margin-top: 10px; font-size: 12.5px; padding: 7px 11px; border-radius: var(--radius-sm);
+             line-height: 1.5; }
+.elig-note a { color: inherit; font-weight: 600; }
 .elig-ok { background: var(--success-soft); color: var(--success); }
-.elig-no { background: var(--warning-soft); color: var(--warning); }
+/* the middle state: a country requirement nobody has checked yet */
+.elig-maybe { background: var(--info-soft); color: var(--info); }
+.elig-no { background: var(--danger-soft); color: var(--danger); }
 
 /* loading spinner */
 .loading-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 64px 0; color: var(--muted); }

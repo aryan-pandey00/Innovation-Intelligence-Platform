@@ -8,6 +8,9 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// fired when the cached user record changes, so shared UI can refresh in place
+export const USER_UPDATED = 'user-updated'
+
 export const authService = {
   register: (data) => api.post('/api/auth/register', data),
 
@@ -21,8 +24,17 @@ export const authService = {
   },
 
   getMe: () => api.get('/api/auth/me'),
+  updateMe: (data) => api.patch('/api/users/me', data),
   deleteMyAccount: () => api.delete('/api/users/me'),
   logout: () => { localStorage.removeItem('token'); localStorage.removeItem('user') },
+
+  getCachedUser: () => JSON.parse(localStorage.getItem('user') || '{}'),
+
+  // write the cached user and notify listeners (Nav, Dashboard) in this tab
+  setCachedUser: (user) => {
+    localStorage.setItem('user', JSON.stringify(user))
+    window.dispatchEvent(new Event(USER_UPDATED))
+  },
 }
 
 export const profileService = {
@@ -42,9 +54,9 @@ export const profileService = {
 }
 
 export const datasetService = {
-  searchPublications: (q, limit = 8) =>
+  searchPublications: (q, limit = 20) =>
     api.get('/api/datasets/publications/search', { params: { q, limit } }),
-  searchPatents: (q, limit = 8) =>
+  searchPatents: (q, limit = 20) =>
     api.get('/api/datasets/patents/search', { params: { q, limit } }),
 }
 
@@ -52,12 +64,33 @@ export const fundingService = {
   list: (params = {}) => api.get('/api/funding', { params }),
   search: (q) => api.get('/api/funding/search', { params: { q } }),
   recommendations: (params = {}) => api.get('/api/funding/recommendations', { params }),
+  live: (q = '') => api.get('/api/funding/live', { params: { q } }),
   get: (id) => api.get(`/api/funding/${id}`),
 }
 
 export const trendsService = {
   analyze: (query) => api.get('/api/trends', { params: { query } }),
   myDomain: () => api.get('/api/trends/my'),
+}
+
+export const patentsService = {
+  landscape: (query) => api.get('/api/patents/landscape', { params: { query } }),
+  myLandscape: () => api.get('/api/patents/landscape/my'),
+}
+
+export const technologyService = {
+  intelligence: (query) => api.get('/api/technology/intelligence', { params: { query } }),
+  myIntelligence: () => api.get('/api/technology/intelligence/my'),
+}
+
+export const innovationService = {
+  myAssessment: () => api.get('/api/innovation/assessment/my'),
+  assessment: (query) => api.get('/api/innovation/assessment', { params: { query } }),
+}
+
+export const commercializationService = {
+  mine: () => api.get('/api/commercialization/my'),
+  forQuery: (query) => api.get('/api/commercialization', { params: { query } }),
 }
 
 export const adminService = {
@@ -88,4 +121,3 @@ export const extractErrorMessage = (err, defaultMsg = 'An error occurred') => {
 }
 
 export default api
-

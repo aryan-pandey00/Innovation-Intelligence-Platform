@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import engine, Base
-from app.routes import auth, users, profiles, datasets, funding, trends
+from app.routes import (
+    auth, users, profiles, datasets, funding, trends, patents, technology,
+    innovation, commercialization,
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -28,6 +31,11 @@ app.include_router(profiles.router)
 app.include_router(datasets.router)
 app.include_router(funding.router)
 app.include_router(trends.router)
+app.include_router(patents.router)
+app.include_router(technology.router)
+app.include_router(innovation.router)
+app.include_router(commercialization.router)
+
 
 @app.get("/")
 def root():

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { fundingService, authService, extractErrorMessage } from '../services/api'
 import Loading from '../components/Loading'
 import EmptyState from '../components/EmptyState'
+import { PageHeader } from '../components/ui'
 
 const SOURCE_LABELS = {
   government_grant: 'Government Grant',
@@ -25,17 +26,28 @@ const fmtAmount = (min, max, cur = 'USD') => {
   return `${cur} ${f(min ?? max)}`
 }
 
-function OpportunityCard({ opp, score, eligible, matched, reasons }) {
+// Three states, because "✓ Eligible — set your country to confirm" contradicted
+// itself. An unchecked country requirement is not the same as being eligible.
+const ELIG_UI = {
+  eligible: { cls: 'elig-ok', label: 'Eligible' },
+  unconfirmed: { cls: 'elig-maybe', label: 'Possibly eligible' },
+  ineligible: { cls: 'elig-no', label: 'Not eligible' },
+}
+
+function OpportunityCard({ opp, score, eligibility, matched, reasons }) {
   const amount = fmtAmount(opp.amount_min, opp.amount_max, opp.currency)
+  const elig = ELIG_UI[eligibility] || ELIG_UI.unconfirmed
   return (
     <div className="opp-card">
       <div className="opp-head">
         <div>
           <a href={opp.url} target="_blank" rel="noreferrer" className="opp-title">{opp.title}</a>
+          {opp.live && <span className="live-badge">● {opp.source_label}</span>}
+          {opp.awarded && <span className="awarded-tag">Past award</span>}
           <div className="muted">{opp.agency}</div>
         </div>
         {score != null && (
-          <div className={`score-pill ${eligible ? '' : 'score-ineligible'}`}>
+          <div className={`score-pill ${eligibility === 'ineligible' ? 'score-ineligible' : ''}`}>
             {Math.round(score)}% match
           </div>
         )}
@@ -57,8 +69,11 @@ function OpportunityCard({ opp, score, eligible, matched, reasons }) {
       )}
 
       {reasons?.length > 0 && (
-        <div className={`elig-note ${eligible ? 'elig-ok' : 'elig-no'}`}>
-          {eligible ? '✓ Eligible' : '✕ Not eligible'} — {reasons.join(' · ')}
+        <div className={`elig-note ${elig.cls}`}>
+          <strong>{elig.label}</strong> — {reasons.join(' · ')}
+          {eligibility === 'unconfirmed' && (
+            <> · <Link to="/profile">add your country</Link></>
+          )}
         </div>
       )}
     </div>
@@ -69,6 +84,8 @@ export default function Funding() {
   const [tab, setTab] = useState('recommended')
   const [recs, setRecs] = useState([])
   const [all, setAll] = useState([])
+  const [live, setLive] = useState([])
+  const [liveLoading, setLiveLoading] = useState(true)
   const [eligibleOnly, setEligibleOnly] = useState(false)
   const [sourceFilter, setSourceFilter] = useState('')
   const [query, setQuery] = useState('')
@@ -79,7 +96,7 @@ export default function Funding() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    fundingService.recommendations({ limit: 20 })
+    fundingService.recommendations({ limit: 50, include_live: true })
       .then((res) => setRecs(res.data))
       .catch((err) => {
         if (err.response?.status === 401) { authService.logout(); navigate('/login') }
@@ -89,27 +106,43 @@ export default function Funding() {
       .finally(() => setLoading(false))
 
     fundingService.list().then((res) => setAll(res.data)).catch(() => {})
+    loadLive('')
   }, [navigate])
+
+  const loadLive = (q) => {
+    setLiveLoading(true)
+    fundingService.live(q)
+      .then((res) => setLive(res.data))
+      .catch(() => setLive([]))
+      .finally(() => setLiveLoading(false))
+  }
 
   const runSearch = async (e) => {
     e.preventDefault()
-    if (query.trim().length < 2) { setSearchResults(null); return }
+    if (query.trim().length < 2) { setSearchResults(null); loadLive(''); return }
     try {
       const res = await fundingService.search(query.trim())
       setSearchResults(res.data)
     } catch (err) { setError(extractErrorMessage(err)) }
+    loadLive(query.trim())
   }
 
-  const shownRecs = eligibleOnly ? recs.filter((r) => r.eligible) : recs
-  const browseList = (searchResults ?? all).filter(
-    (o) => !sourceFilter || o.source_type === sourceFilter
-  )
+  const shownRecs = eligibleOnly
+    ? recs.filter((r) => r.eligibility !== 'ineligible')
+    : recs
+  const bySource = (o) => !sourceFilter || o.source_type === sourceFilter
+  const curatedList = (searchResults ?? all).filter(bySource)
+  const liveList = live.filter(bySource)
+  const browseList = [...curatedList, ...liveList]
 
-  if (loading) return <Loading message="Loading funding opportunities…" />
+  if (loading) return <Loading message="Matching opportunities, including live funding sources…" />
 
   return (
     <div className="dashboard">
-      <h1>Funding Discovery</h1>
+      <PageHeader trail="Discover" title="Funding Discovery">
+        Grants ranked against your portfolio, with eligibility checked against your
+        role and country.
+      </PageHeader>
         {error && <div className="error">{error}</div>}
 
         <div className="tabs">
@@ -128,24 +161,24 @@ export default function Funding() {
             {noProfile ? (
               <div className="card">
                 <p>Create your research profile to get personalized funding recommendations.</p>
-                <Link to="/profile"><button style={{ marginTop: 12, width: 'auto', padding: '10px 18px' }}>
-                  Go to My Profile</button></Link>
+                <Link to="/portfolio"><button style={{ marginTop: 12, width: 'auto', padding: '10px 18px' }}>
+                  Go to my portfolio</button></Link>
               </div>
             ) : (
               <>
                 <label className="checkbox-row">
                   <input type="checkbox" checked={eligibleOnly}
                          onChange={(e) => setEligibleOnly(e.target.checked)} />
-                  Show only opportunities I'm eligible for
+                  Hide opportunities I'm not eligible for
                 </label>
                 <p className="muted" style={{ marginBottom: 12 }}>
-                  Ranked against your research profile ({shownRecs.length} shown)
+                  Ranked against your portfolio — showing {shownRecs.length} of {recs.length}
                 </p>
                 {shownRecs.length === 0
                   ? <EmptyState>No matching opportunities. Try adding more research domains or keywords to your profile.</EmptyState>
                   : shownRecs.map((r) => (
                       <OpportunityCard key={r.opportunity.id} opp={r.opportunity}
-                        score={r.relevance_score} eligible={r.eligible}
+                        score={r.relevance_score} eligibility={r.eligibility}
                         matched={r.matched_terms} reasons={r.reasons} />
                     ))}
               </>
@@ -172,7 +205,8 @@ export default function Funding() {
             </select>
 
             <p className="muted" style={{ marginBottom: 12 }}>
-              {searchResults ? `${browseList.length} search result(s)` : `${browseList.length} opportunities`}
+              {curatedList.length} curated
+              {liveLoading ? ' · loading live sources…' : ` · ${liveList.length} live`}
             </p>
             {browseList.length === 0
               ? <EmptyState>No opportunities found.</EmptyState>

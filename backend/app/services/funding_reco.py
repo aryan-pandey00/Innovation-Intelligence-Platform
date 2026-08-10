@@ -45,15 +45,23 @@ def _opportunity_text(opp) -> str:
     ]).strip()
 
 
+# Three states: a country-restricted grant for a user with no country set is
+# neither eligible nor ruled out, and calling it eligible inflated the dashboard.
+ELIGIBLE = "eligible"
+UNCONFIRMED = "unconfirmed"
+INELIGIBLE = "ineligible"
+
+
 def check_eligibility(opp, user_role: str, user_country: str | None,
-                      today: date) -> tuple[bool, list[str]]:
-    eligible = True
+                      today: date) -> tuple[str, list[str]]:
+    """Returns (status, reasons) where status is one of the three above."""
+    status = ELIGIBLE
     reasons = []
 
     roles = opp.eligible_roles or []
     if roles and user_role not in roles:
-        eligible = False
-        reasons.append(f"Restricted to: {', '.join(roles)}")
+        status = INELIGIBLE
+        reasons.append(f"Open only to: {', '.join(roles)}")
     else:
         reasons.append("Open to your role")
 
@@ -62,25 +70,110 @@ def check_eligibility(opp, user_role: str, user_country: str | None,
         if user_country and user_country.strip().lower() in countries:
             reasons.append(f"Available in {user_country}")
         elif user_country:
-            eligible = False
-            reasons.append(f"Restricted to: {', '.join(opp.countries)}")
+            status = INELIGIBLE
+            reasons.append(f"Open only in: {', '.join(opp.countries)}")
         else:
-            reasons.append(f"Location-restricted ({', '.join(opp.countries)}); "
-                           "set your country to confirm")
+            if status == ELIGIBLE:
+                status = UNCONFIRMED
+            reasons.append(f"Limited to {', '.join(opp.countries)} — add your country to check")
     else:
-        reasons.append("No location restriction")
+        reasons.append("Open in any country")
 
     if opp.deadline and opp.deadline < today:
-        eligible = False
-        reasons.append(f"Deadline passed ({opp.deadline.isoformat()})")
+        status = INELIGIBLE
+        reasons.append(f"Closed on {opp.deadline.isoformat()}")
     elif opp.deadline:
-        reasons.append(f"Deadline {opp.deadline.isoformat()}")
+        reasons.append(f"Closes {opp.deadline.isoformat()}")
 
-    return eligible, reasons
+    return status, reasons
+
+
+def _live_eligibility(opp: dict, user_country: str | None) -> tuple[str, list[str]]:
+    countries = [c.lower() for c in (opp.get("countries") or [])]
+    if not countries or "any" in countries:
+        return ELIGIBLE, ["Open in any country"]
+    if user_country and user_country.strip().lower() in countries:
+        return ELIGIBLE, [f"Available in {user_country}"]
+    if user_country:
+        return INELIGIBLE, [f"Open only in: {', '.join(opp.get('countries'))}"]
+    return UNCONFIRMED, [f"Limited to {', '.join(opp.get('countries'))} — add your country to check"]
+
+
+def score_live_for_profile(profile, publications, user_country, live_opps) -> list[dict]:
+    if not live_opps:
+        return []
+    ptext = build_profile_text(profile, publications)
+    pwords = set()
+    for t in profile_terms(profile):
+        pwords |= _term_words(t)
+
+    texts = [f"{o.get('title', '')} {o.get('description', '')}".strip() for o in live_opps]
+    cosines = [0.0] * len(live_opps)
+    if ptext:
+        try:
+            matrix = TfidfVectorizer(stop_words="english").fit_transform([ptext] + texts)
+            cosines = list(cosine_similarity(matrix[0:1], matrix[1:]).flatten())
+        except ValueError:
+            pass
+
+    results = []
+    for opp, cos in zip(live_opps, cosines):
+        text_sim = min(1.0, float(cos) * 4)
+        owords = _term_words(f"{opp.get('title', '')} {opp.get('description', '')}")
+        matched_all = [w for w in pwords if w in owords]
+        overlap = len(matched_all) / max(1, len(pwords))
+        relevance = round(100 * (0.6 * overlap + 0.4 * text_sim), 1)
+        matched = sorted(matched_all)[:6]
+        status, reasons = _live_eligibility(opp, user_country)
+        results.append({
+            "opportunity": opp,
+            "relevance_score": relevance,
+            "eligibility": status,
+            # kept for ordering and back-compatibility: "not ruled out"
+            "eligible": status != INELIGIBLE,
+            "matched_terms": matched,
+            "reasons": reasons,
+        })
+    return results
+
+
+def rank_by_query(query: str, opportunities) -> list[dict]:
+    if not opportunities or not query.strip():
+        return []
+    qwords = _term_words(query)
+    opp_texts = [_opportunity_text(o) for o in opportunities]
+
+    cosines = [0.0] * len(opportunities)
+    try:
+        matrix = TfidfVectorizer(stop_words="english").fit_transform([query] + opp_texts)
+        cosines = list(cosine_similarity(matrix[0:1], matrix[1:]).flatten())
+    except ValueError:
+        pass
+
+    results = []
+    for opp, cos in zip(opportunities, cosines):
+        opp_terms = {t.strip().lower() for t in
+                     (opp.domains or []) + (opp.keywords or []) if t.strip()}
+        matched = sorted(t for t in opp_terms if _term_words(t) & qwords)
+        tag_ratio = len(matched) / max(1, len(opp_terms))
+        text_sim = min(1.0, float(cos) * 4)
+        relevance = round(100 * (0.6 * tag_ratio + 0.4 * text_sim), 1)
+        results.append({"opportunity": opp, "relevance_score": relevance})
+
+    results.sort(key=lambda r: -r["relevance_score"])
+    return results
 
 
 def rank_opportunities(profile, publications, user_role, user_country,
-                       opportunities, today=None) -> list[dict]:
+                       opportunities, today=None, focus: str | None = None) -> list[dict]:
+    """`focus` narrows the ranking to one technology without dropping the profile.
+
+    The innovation assessment needs both: which grants suit *this technology* and
+    whether *this user* can apply. Ranking by the bare term threw away role and
+    country; ranking by the profile alone ignored the term, so every technology
+    scored the same. A term already in the profile is a no-op here, which is what
+    keeps one grant reporting one percentage across the app.
+    """
     if today is None:
         today = date.today()
     if not opportunities:
@@ -88,6 +181,10 @@ def rank_opportunities(profile, publications, user_role, user_country,
 
     ptext = build_profile_text(profile, publications)
     pterms = profile_terms(profile)
+    focus_key = (focus or "").strip().lower()
+    if focus_key and focus_key not in pterms:
+        pterms = pterms | {focus_key}
+        ptext = f"{ptext} {focus}".strip()
     pwords = set()
     for t in pterms:
         pwords |= _term_words(t)
@@ -103,7 +200,7 @@ def rank_opportunities(profile, publications, user_role, user_country,
 
     results = []
     for opp, cos in zip(opportunities, cosines):
-        eligible, reasons = check_eligibility(opp, user_role, user_country, today)
+        status, reasons = check_eligibility(opp, user_role, user_country, today)
         opp_terms = {t.strip().lower() for t in
                      (opp.domains or []) + (opp.keywords or []) if t.strip()}
         matched = sorted(t for t in opp_terms if _term_words(t) & pwords)
@@ -115,13 +212,15 @@ def rank_opportunities(profile, publications, user_role, user_country,
         results.append({
             "opportunity": opp,
             "relevance_score": relevance,
-            "eligible": eligible,
+            "eligibility": status,
+            # kept for ordering and back-compatibility: "not ruled out"
+            "eligible": status != INELIGIBLE,
             "matched_terms": matched,
             "reasons": reasons,
         })
 
     results.sort(key=lambda r: (
-        not r["eligible"],
+        {ELIGIBLE: 0, UNCONFIRMED: 1, INELIGIBLE: 2}[r["eligibility"]],
         -r["relevance_score"],
         r["opportunity"].deadline or date.max,
     ))

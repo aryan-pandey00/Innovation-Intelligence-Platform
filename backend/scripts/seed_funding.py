@@ -16,7 +16,7 @@ S = ["startup_founder"]
 RS = ["researcher", "startup_founder"]
 
 OPPORTUNITIES = [
-    # ---------------- Government Grants ----------------
+    # Government Grants
     dict(title="NSF CAREER Award", agency="National Science Foundation", source_type=GOV,
          description="Prestigious award supporting early-career faculty as academic role models in research and education across all NSF-supported fields.",
          domains=["computer science", "engineering", "physics", "materials science"],
@@ -53,8 +53,26 @@ OPPORTUNITIES = [
          keywords=["space", "spacecraft", "exploration", "technology"],
          eligible_roles=R, countries=["USA"], amount_min=200000, amount_max=750000,
          deadline=date(2026, 12, 1), url="https://www.nasa.gov/stmd"),
+    dict(title="NEH Fellowships", agency="National Endowment for the Humanities", source_type=GOV,
+         description="Fellowships supporting individual scholars pursuing advanced research in the humanities, from history and literature to philosophy and cultural studies.",
+         domains=["humanities", "history", "literature", "philosophy"],
+         keywords=["humanities", "scholarship", "culture", "books"],
+         eligible_roles=R, countries=["USA"], amount_min=30000, amount_max=60000,
+         deadline=date(2026, 4, 8), url="https://www.neh.gov/grants/research/fellowships"),
+    dict(title="NSF Social, Behavioral & Economic Sciences", agency="National Science Foundation", source_type=GOV,
+         description="Supports basic research on human behavior, social systems and the economy across the social and behavioral sciences.",
+         domains=["social sciences", "economics", "psychology", "linguistics"],
+         keywords=["social science", "behavior", "economics", "society"],
+         eligible_roles=R, countries=["USA"], amount_min=100000, amount_max=500000,
+         deadline=date(2026, 8, 18), url="https://www.nsf.gov/dir/index.jsp?org=SBE"),
+    dict(title="USDA NIFA AFRI Grants", agency="USDA National Institute of Food and Agriculture", source_type=GOV,
+         description="Agriculture and Food Research Initiative funding for research addressing food security, agricultural systems and sustainable production.",
+         domains=["agriculture", "food science", "plant science", "sustainability"],
+         keywords=["agriculture", "food security", "crops", "farming"],
+         eligible_roles=RS, countries=["USA"], amount_min=300000, amount_max=1000000,
+         deadline=date(2026, 6, 25), url="https://www.nifa.usda.gov/grants/programs/afri"),
 
-    # ---------------- Research Councils ----------------
+    # Research Councils
     dict(title="ERC Starting Grant", agency="European Research Council", source_type=COUNCIL,
          description="Frontier research funding for excellent early-career scientists to build their own teams.",
          domains=["all disciplines", "AI", "physics", "life sciences"],
@@ -93,7 +111,7 @@ OPPORTUNITIES = [
          eligible_roles=R, countries=["Canada"], amount_min=100000, amount_max=500000,
          deadline=date(2026, 11, 1), url="https://www.nserc-crsng.gc.ca"),
 
-    # ---------------- Innovation Funds ----------------
+    # Innovation Funds
     dict(title="EIC Pathfinder", agency="European Innovation Council", source_type=INNOV,
          description="Funds visionary, high-risk research to develop breakthrough technologies and radical innovation.",
          domains=["deep tech", "AI", "quantum", "biotech"],
@@ -124,8 +142,38 @@ OPPORTUNITIES = [
          keywords=["prize", "competition", "grand challenge", "moonshot"],
          eligible_roles=RS, countries=["Any"], amount_min=1000000, amount_max=10000000,
          deadline=date(2026, 11, 20), url="https://www.xprize.org"),
+    dict(title="Simons Collaboration Grants for Mathematicians", agency="Simons Foundation", source_type=INNOV,
+         description="Supports the research and collaboration travel of accomplished mathematicians, funding fundamental work in the mathematical sciences.",
+         domains=["mathematics", "geometry", "theoretical physics"],
+         keywords=["mathematics", "collaboration", "fundamental", "theory"],
+         eligible_roles=R, countries=["USA"], amount_min=40000, amount_max=50000,
+         deadline=date(2026, 9, 30), url="https://www.simonsfoundation.org"),
+    dict(title="Sloan Research Fellowships", agency="Alfred P. Sloan Foundation", source_type=INNOV,
+         description="Two-year fellowships recognizing outstanding early-career researchers across mathematics, economics, neuroscience, ocean sciences and more.",
+         domains=["mathematics", "economics", "neuroscience", "ocean sciences"],
+         keywords=["early career", "fellowship", "science", "scholar"],
+         eligible_roles=R, countries=["USA", "Canada"], amount_min=75000, amount_max=75000,
+         deadline=date(2026, 9, 15), url="https://sloan.org/fellowships"),
+    dict(title="Bezos Earth Fund Grants", agency="Bezos Earth Fund", source_type=INNOV,
+         description="Large-scale funding for organizations driving climate and nature solutions, from conservation to decarbonization.",
+         domains=["climate", "environment", "conservation", "sustainability"],
+         keywords=["climate", "nature", "decarbonization", "environment"],
+         eligible_roles=RS, countries=["Any"], amount_min=1000000, amount_max=10000000,
+         deadline=None, url="https://www.bezosearthfund.org"),
+    dict(title="National Geographic Society Grants", agency="National Geographic Society", source_type=INNOV,
+         description="Funds bold individuals working on projects in conservation, exploration, wildlife, oceans and scientific discovery.",
+         domains=["conservation", "exploration", "wildlife", "marine science"],
+         keywords=["conservation", "exploration", "environment", "field research"],
+         eligible_roles=RS, countries=["Any"], amount_min=20000, amount_max=100000,
+         deadline=date(2026, 10, 15), url="https://www.nationalgeographic.org/society/grants-and-investments"),
+    dict(title="Spencer Foundation Research Grants", agency="Spencer Foundation", source_type=INNOV,
+         description="Supports rigorous research that advances the understanding of education and improves learning across settings.",
+         domains=["education", "learning sciences", "education policy"],
+         keywords=["education", "learning", "teaching", "research"],
+         eligible_roles=R, countries=["Any"], amount_min=50000, amount_max=500000,
+         deadline=date(2026, 11, 2), url="https://www.spencer.org"),
 
-    # ---------------- Startup Accelerators ----------------
+    # Startup Accelerators
     dict(title="Y Combinator", agency="Y Combinator", source_type=ACCEL,
          description="Seed accelerator providing funding, mentorship and network to early-stage startups twice a year.",
          domains=["software", "AI", "fintech", "biotech"],
@@ -157,7 +205,7 @@ OPPORTUNITIES = [
          eligible_roles=S, countries=["Any"], amount_min=80000, amount_max=250000,
          deadline=date(2026, 8, 25), url="https://www.joinef.com"),
 
-    # ---------------- Venture Programs ----------------
+    # Venture Programs
     dict(title="NVIDIA Inception", agency="NVIDIA", source_type=VENTURE,
          description="Program nurturing AI and data-science startups with technical support, credits and go-to-market help.",
          domains=["AI", "machine learning", "data science", "robotics"],
@@ -189,7 +237,7 @@ OPPORTUNITIES = [
          eligible_roles=S, countries=["Any"], amount_min=0, amount_max=100000,
          deadline=date(2026, 9, 12), url="https://www.intel.com/ignite"),
 
-    # ---------------- International Agencies ----------------
+    # International Agencies
     dict(title="MSCA Postdoctoral Fellowships", agency="Marie Skłodowska-Curie Actions (EU)", source_type=INTL,
          description="Fellowships supporting researchers' mobility and career development across borders and sectors.",
          domains=["all disciplines", "AI", "life sciences", "engineering"],

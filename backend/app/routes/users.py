@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_role, is_super_admin
 from app.models.user import User, UserRole
-from app.schemas.user import UserResponse, RoleUpdate
+from app.schemas.user import UserResponse, RoleUpdate, UserUpdate
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -17,6 +17,20 @@ def list_all_users(
     _user: User = Depends(require_role(UserRole.ADMIN, UserRole.INNOVATION_MANAGER)),
 ):
     return db.query(User).all()
+
+@router.patch("/me", response_model=UserResponse)
+def update_my_account(
+    data: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update the signed-in user's own account details. Email and role are
+    intentionally not editable here: email is the JWT subject, and roles are
+    assigned by an administrator."""
+    current_user.full_name = data.full_name
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_my_account(

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime
 from app.models.user import UserRole
 
@@ -32,3 +32,15 @@ class Token(BaseModel):
 
 class RoleUpdate(BaseModel):
     role: UserRole
+
+class UserUpdate(BaseModel):
+    """Self-service edits a user may make to their own account record."""
+    full_name: str = Field(min_length=2, max_length=120)
+
+    @field_validator("full_name")
+    @classmethod
+    def strip_and_require_text(cls, v: str) -> str:
+        v = " ".join(v.split())
+        if len(v) < 2:
+            raise ValueError("Full name must be at least 2 characters.")
+        return v

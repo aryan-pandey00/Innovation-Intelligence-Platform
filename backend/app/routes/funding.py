@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -8,8 +9,9 @@ from app.models.funding import FundingOpportunity
 from app.models.research_profile import ResearchProfile
 from app.schemas.funding import (
     FundingOpportunityCreate, FundingOpportunityResponse, FundingRecommendation,
+    LiveOpportunity, RankedOpportunity,
 )
-from app.services import funding_reco
+from app.services import funding_reco, grants_gov, world_bank, ukri
 
 router = APIRouter(prefix="/api/funding", tags=["Funding Discovery"])
 
@@ -52,10 +54,17 @@ def search_opportunities(
             .all())
 
 
-@router.get("/recommendations", response_model=list[FundingRecommendation])
-def recommendations(
+def _serialize_curated(item: dict) -> dict:
+    opp = FundingOpportunityResponse.model_validate(item["opportunity"]).model_dump(mode="json")
+    opp["live"] = False
+    return {**item, "opportunity": opp}
+
+
+@router.get("/recommendations", response_model=list[RankedOpportunity])
+async def recommendations(
     limit: int = Query(10, ge=1, le=50),
     eligible_only: bool = Query(False),
+    include_live: bool = Query(False, description="Also score live external sources"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -74,9 +83,38 @@ def recommendations(
         user_country=profile.country,
         opportunities=opportunities,
     )
+    items = [_serialize_curated(r) for r in ranked]
+
+    if include_live:
+        terms = ((profile.research_domains or []) + (profile.keywords or [])
+                 + (profile.technology_areas or []))
+        keyword = " ".join(terms[:3])
+        live_lists = await asyncio.gather(
+            grants_gov.search_live(keyword=keyword),
+            world_bank.search_live(keyword=keyword),
+            ukri.search_live(keyword=keyword),
+        )
+        live_opps = [o for source in live_lists for o in source]
+        items += funding_reco.score_live_for_profile(
+            profile, profile.publications, profile.country, live_opps)
+
     if eligible_only:
-        ranked = [r for r in ranked if r["eligible"]]
-    return ranked[:limit]
+        items = [r for r in items if r["eligible"]]
+    items.sort(key=lambda r: (not r["eligible"], -r["relevance_score"]))
+    return items[:limit]
+
+
+@router.get("/live", response_model=list[LiveOpportunity])
+async def live_opportunities(
+    q: str = Query("", description="Keyword to search live funding sources"),
+    _user: User = Depends(get_current_user),
+):
+    results = await asyncio.gather(
+        grants_gov.search_live(keyword=q),
+        world_bank.search_live(keyword=q),
+        ukri.search_live(keyword=q),
+    )
+    return [item for source in results for item in source]
 
 
 @router.get("/{opp_id}", response_model=FundingOpportunityResponse)

@@ -6,6 +6,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # EPO Open Patent Services (developers.epo.org, non-paying tier).
+    # Empty means "not configured" — patent code must degrade, never crash.
+    OPS_CONSUMER_KEY: str = ""
+    OPS_CONSUMER_SECRET: str = ""
+
     class Config:
         env_file = ".env"
 

@@ -1,43 +1,52 @@
 import TagRow from './TagRow'
 
+/**
+ * Read-only view of a user's portfolio, used by the admin panel.
+ *
+ * Everything states its absence rather than disappearing: a reviewer has to be
+ * able to tell "set no technology areas" from "this panel doesn't show them".
+ */
+const none = (text) => <span className="detail-none">{text}</span>
+
 export default function ProfileDetail({ p }) {
+  const org = [p.organization, p.country].filter(Boolean).join(' · ')
+
   return (
-    <div style={{ marginTop: 12 }}>
-      {p.headline && <p><strong>{p.headline}</strong></p>}
-      {p.bio && <p className="muted" style={{ marginTop: 6 }}>{p.bio}</p>}
-      {p.organization && <p className="muted">Org: {p.organization} {p.country && `· ${p.country}`}</p>}
+    <div className="profile-detail">
+      <p className="detail-headline">{p.headline || none('No headline set')}</p>
+      <p className="detail-bio">{p.bio || none('No bio written')}</p>
+      <p className="detail-org">{org || none('No organisation or country set')}</p>
 
-      <TagRow label="Research Domains" items={p.research_domains} />
-      <TagRow label="Keywords" items={p.keywords} />
-      <TagRow label="Technology Areas" items={p.technology_areas} />
+      <TagRow label="Research domains" items={p.research_domains}
+              empty="none set — research trends fall back to a default query" />
+      <TagRow label="Keywords" items={p.keywords} empty="none set" />
+      <TagRow label="Technology areas" items={p.technology_areas}
+              empty="none set — patent and technology analysis has nothing to run on" />
 
-      <h3 style={{ marginTop: 20 }}>Publications ({p.publications?.length || 0})</h3>
-      {p.publications && p.publications.length > 0 ? (
+      <h3>Publications ({p.publications?.length || 0})</h3>
+      {p.publications?.length > 0 ? (
         p.publications.map((pub) => (
-          <div key={pub.id} className="entry" style={{ display: 'block' }}>
+          <div key={pub.id} className="entry entry-stacked">
             <strong>{pub.title}</strong>
-            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-              {pub.authors?.join(', ')} {pub.venue && `· ${pub.venue}`} {pub.year && `· ${pub.year}`}
+            <div className="entry-meta">
+              {[pub.authors?.join(', '), pub.venue, pub.year].filter(Boolean).join(' · ')}
             </div>
           </div>
         ))
-      ) : (
-        <p className="muted" style={{ fontSize: 13 }}>No publications listed.</p>
-      )}
+      ) : <p className="detail-none">None listed.</p>}
 
-      <h3 style={{ marginTop: 20 }}>Patents ({p.patents?.length || 0})</h3>
-      {p.patents && p.patents.length > 0 ? (
+      <h3>Patents ({p.patents?.length || 0})</h3>
+      {p.patents?.length > 0 ? (
         p.patents.map((pat) => (
-          <div key={pat.id} className="entry" style={{ display: 'block' }}>
+          <div key={pat.id} className="entry entry-stacked">
             <strong>{pat.title}</strong>
-            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-              {pat.assignee} {pat.patent_number && `· ${pat.patent_number}`} {pat.technology_domain && `· ${pat.technology_domain}`}
+            <div className="entry-meta">
+              {[pat.assignee, pat.patent_number, pat.technology_domain]
+                .filter(Boolean).join(' · ')}
             </div>
           </div>
         ))
-      ) : (
-        <p className="muted" style={{ fontSize: 13 }}>No patents listed.</p>
-      )}
+      ) : <p className="detail-none">None listed.</p>}
     </div>
   )
 }

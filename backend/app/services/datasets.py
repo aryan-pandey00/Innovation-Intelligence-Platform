@@ -2,6 +2,8 @@ import html
 import re
 import httpx
 
+from app.services.patents_analysis import clean_assignee, clean_title
+
 OPENALEX_URL = "https://api.openalex.org/works"
 GOOGLE_PATENTS_URL = "https://patents.google.com/xhr/query"
 CONTACT_EMAIL = "innovation-platform@example.com"
@@ -57,8 +59,12 @@ async def search_patents(query: str, limit: int = 10) -> list[dict]:
                 break
             number = p.get("publication_number")
             results.append({
-                "title": _clean(p.get("title")) or "Untitled",
-                "assignee": p.get("assignee"),
+                # Imported records are stored and then displayed beside names the
+                # analysis pages produce, so they go through the same cleaner —
+                # otherwise a portfolio row reads "GS Yuasa INT Ltd [JP]" while
+                # the Patent Landscape shows "GS Yuasa International Ltd".
+                "title": clean_title(_clean(p.get("title"))),
+                "assignee": clean_assignee(p.get("assignee")),
                 "patent_number": number,
                 "filing_date": p.get("filing_date") or None,
                 "classification": None,

@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.models.research_profile import ResearchProfile
-from app.services import trends
+from app.services import trends, profile_utils
 
 router = APIRouter(prefix="/api/trends", tags=["Research Trends"])
 
@@ -17,6 +17,9 @@ async def trend_analysis(
 ):
     try:
         return await trends.get_trends(query)
+    except trends.ResearchQuotaExceeded as exc:
+        # A spent daily quota is not an outage; say so and say when it clears.
+        raise HTTPException(status_code=503, detail=trends.quota_detail(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=502, detail="Research data source unavailable")
 
@@ -33,16 +36,21 @@ async def my_domain_trends(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Create your research profile first to see trends for your field.",
         )
-    terms = (profile.research_domains or []) + (profile.keywords or [])
-    if not terms:
+    # Research trends are an academic question, so this reads research domains
+    # and keywords — not technology areas, which are patent vocabulary.
+    fields = profile_utils.research_terms(profile)
+    if not fields:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Add research domains or keywords to your profile to see trends.",
         )
-    query = " ".join(terms[:5])
     try:
-        result = await trends.get_trends(query)
+        result = await trends.get_trends(fields[0])
+    except trends.ResearchQuotaExceeded as exc:
+        # A spent daily quota is not an outage; say so and say when it clears.
+        raise HTTPException(status_code=503, detail=trends.quota_detail(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=502, detail="Research data source unavailable")
     result["from_profile"] = True
+    result["profile_fields"] = fields
     return result
