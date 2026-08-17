@@ -59,10 +59,6 @@ async def search_patents(query: str, limit: int = 10) -> list[dict]:
                 break
             number = p.get("publication_number")
             results.append({
-                # Imported records are stored and then displayed beside names the
-                # analysis pages produce, so they go through the same cleaner —
-                # otherwise a portfolio row reads "GS Yuasa INT Ltd [JP]" while
-                # the Patent Landscape shows "GS Yuasa International Ltd".
                 "title": clean_title(_clean(p.get("title"))),
                 "assignee": clean_assignee(p.get("assignee")),
                 "patent_number": number,

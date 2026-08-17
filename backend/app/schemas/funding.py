@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date, datetime
 from decimal import Decimal
 from app.models.funding import FundingSourceType
@@ -28,8 +28,7 @@ class FundingOpportunityResponse(FundingOpportunityBase):
     id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LiveOpportunity(BaseModel):
@@ -49,16 +48,11 @@ class LiveOpportunity(BaseModel):
     awarded: bool = False
 
 
-# "eligible" is a two-way answer to a three-way question: a country-restricted
-# grant for a user who has not set a country is neither eligible nor ruled out.
-# `eligibility` carries that distinction and the response models have to declare
-# it — anything not declared here is stripped from the response before the UI
-# ever sees it.
 class FundingRecommendation(BaseModel):
     opportunity: FundingOpportunityResponse
     relevance_score: float
     eligibility: str
-    eligible: bool                       # eligibility != "ineligible"; kept for ordering
+    eligible: bool
     matched_terms: list[str] = []
     reasons: list[str] = []
 

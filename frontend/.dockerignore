@@ -1,0 +1,11 @@
+# Installed inside the image from the lockfile. Copying the host's tree in would be
+# slow and, if the host is not Linux, wrong — native modules are built per platform.
+node_modules/
+
+# Built inside the image. A stale local build copied in would be served instead.
+dist/
+
+.env
+.env.*
+Dockerfile
+.dockerignore

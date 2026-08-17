@@ -3,14 +3,6 @@ import { Link } from 'react-router-dom'
 import { InfoHint } from '../ui'
 import { byKey } from '../modules'
 
-/**
- * Chip input for the three profile field types.
- *
- * Which field a term goes in decides which module uses it, and that was the most
- * confusing thing about the profile — a discipline in Technology Areas becomes a
- * patent query and returns nonsense. `routing` shows the field-to-page mapping at
- * a glance, and takes module keys so it reads with the same names as the sidebar.
- */
 export default function TagInput({ label, routing = [], hint, tags, onChange, placeholder,
                                    elsewhere = [] }) {
   const [draft, setDraft] = useState('')
@@ -25,8 +17,6 @@ export default function TagInput({ label, routing = [], hint, tags, onChange, pl
       setNote(`“${v}” is already here.`)
       return
     }
-    // Funding dedupes before querying so nothing breaks, but a term sitting in
-    // two fields is invisible to the user. Say which field already holds it.
     const held = elsewhere.find((f) => f.terms.some((t) => t.toLowerCase() === low))
     if (held) {
       setNote(`“${v}” is already in ${held.label}. One field is enough.`)

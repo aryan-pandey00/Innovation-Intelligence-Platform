@@ -16,7 +16,6 @@ S = ["startup_founder"]
 RS = ["researcher", "startup_founder"]
 
 OPPORTUNITIES = [
-    # Government Grants
     dict(title="NSF CAREER Award", agency="National Science Foundation", source_type=GOV,
          description="Prestigious award supporting early-career faculty as academic role models in research and education across all NSF-supported fields.",
          domains=["computer science", "engineering", "physics", "materials science"],
@@ -72,7 +71,6 @@ OPPORTUNITIES = [
          eligible_roles=RS, countries=["USA"], amount_min=300000, amount_max=1000000,
          deadline=date(2026, 6, 25), url="https://www.nifa.usda.gov/grants/programs/afri"),
 
-    # Research Councils
     dict(title="ERC Starting Grant", agency="European Research Council", source_type=COUNCIL,
          description="Frontier research funding for excellent early-career scientists to build their own teams.",
          domains=["all disciplines", "AI", "physics", "life sciences"],
@@ -111,7 +109,6 @@ OPPORTUNITIES = [
          eligible_roles=R, countries=["Canada"], amount_min=100000, amount_max=500000,
          deadline=date(2026, 11, 1), url="https://www.nserc-crsng.gc.ca"),
 
-    # Innovation Funds
     dict(title="EIC Pathfinder", agency="European Innovation Council", source_type=INNOV,
          description="Funds visionary, high-risk research to develop breakthrough technologies and radical innovation.",
          domains=["deep tech", "AI", "quantum", "biotech"],
@@ -173,7 +170,6 @@ OPPORTUNITIES = [
          eligible_roles=R, countries=["Any"], amount_min=50000, amount_max=500000,
          deadline=date(2026, 11, 2), url="https://www.spencer.org"),
 
-    # Startup Accelerators
     dict(title="Y Combinator", agency="Y Combinator", source_type=ACCEL,
          description="Seed accelerator providing funding, mentorship and network to early-stage startups twice a year.",
          domains=["software", "AI", "fintech", "biotech"],
@@ -205,7 +201,6 @@ OPPORTUNITIES = [
          eligible_roles=S, countries=["Any"], amount_min=80000, amount_max=250000,
          deadline=date(2026, 8, 25), url="https://www.joinef.com"),
 
-    # Venture Programs
     dict(title="NVIDIA Inception", agency="NVIDIA", source_type=VENTURE,
          description="Program nurturing AI and data-science startups with technical support, credits and go-to-market help.",
          domains=["AI", "machine learning", "data science", "robotics"],
@@ -237,7 +232,6 @@ OPPORTUNITIES = [
          eligible_roles=S, countries=["Any"], amount_min=0, amount_max=100000,
          deadline=date(2026, 9, 12), url="https://www.intel.com/ignite"),
 
-    # International Agencies
     dict(title="MSCA Postdoctoral Fellowships", agency="Marie Skłodowska-Curie Actions (EU)", source_type=INTL,
          description="Fellowships supporting researchers' mobility and career development across borders and sectors.",
          domains=["all disciplines", "AI", "life sciences", "engineering"],

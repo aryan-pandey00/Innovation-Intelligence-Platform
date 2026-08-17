@@ -51,8 +51,6 @@ export default function Portfolio() {
     e.preventDefault()
     setStatus('Saving…')
     try {
-      // The record also holds the organisation fields owned by the Profile page,
-      // so merge rather than replace or a save here would blank them.
       const current = exists ? (await profileService.get()).data : {}
       const call = exists ? profileService.update : profileService.create
       const res = await call({ ...current, ...profile })
@@ -77,9 +75,6 @@ export default function Portfolio() {
       {status && <div className="status">{status}</div>}
 
       <form onSubmit={save}>
-        {/* The other half of the Profile page's "what you research lives in My
-            Portfolio". The split was only legible from one side, which made the
-            two pages feel like one page arbitrarily cut in two. */}
         <Card
           title="About you"
           sub={<>Your name, organisation and country live in{' '}
@@ -97,8 +92,6 @@ export default function Portfolio() {
           </div>
         </Card>
 
-        {/* "About your work" and "What you work on" sat one above the other and
-            meant the same thing, so neither said what it held. */}
         <Card title="Your focus">
           <TagInput
             label="Research domains"

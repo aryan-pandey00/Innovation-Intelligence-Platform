@@ -1,0 +1,8 @@
+# Test dependencies, kept out of requirements.txt so the runtime image ships no test runner.
+-r requirements.txt
+
+pytest>=8.3.0
+pytest-cov>=5.0.0
+# Reads generated PDFs back, so the export tests assert on rendered text rather than
+# on "the bytes were produced".
+pypdf>=5.0.0

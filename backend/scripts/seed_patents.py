@@ -16,8 +16,6 @@ TOPICS = [
     "fax machine",
 ]
 
-# Measured: the source starts refusing at roughly 20 requests in quick
-# succession, so keep a wide gap even though it makes seeding slower.
 _REQUEST_GAP = 8
 
 
@@ -35,8 +33,6 @@ def _profile_fields() -> list[str]:
 
 
 async def main():
-    # Named topics only, e.g. `python scripts/seed_patents.py "energy storage"`.
-    # One request instead of two dozen — useful while the source is throttling.
     requested = [a for a in sys.argv[1:] if a.strip()]
     if requested:
         print(f"seeding {len(requested)} requested topic(s) only")
@@ -53,8 +49,6 @@ async def main():
     consecutive_failures = 0
     for topic in topics:
         existing = pa._load_cache(topic)
-        # v1 entries predate corpus totals; re-fetch them so the real patent
-        # count is available instead of just the sample size
         if existing is not None and existing.get("corpus_total") is not None:
             print(f"skip '{topic}' (already cached)")
             ok += 1
@@ -72,8 +66,6 @@ async def main():
         except Exception as exc:
             consecutive_failures += 1
             print(f"FAILED '{topic}': {type(exc).__name__} (source busy — rerun later)")
-            # Google Patents throttles to 429/503 after roughly 20 requests and
-            # the cooldown lasts hours. Hammering it makes that worse, so stop.
             if consecutive_failures >= 3:
                 print("\nstopping: source is throttling us. Wait a few hours and rerun — "
                       "already-cached topics are skipped, so it resumes where it left off.")

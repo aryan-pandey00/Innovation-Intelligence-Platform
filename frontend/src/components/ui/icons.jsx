@@ -1,10 +1,4 @@
-/**
- * The icon factory, plus the icons that are not module destinations. `lineIcon`
- * is shared with `components/modules.jsx`, so a control icon and a nav icon
- * cannot drift apart in weight or grid.
- */
 
-/** 20x20 on a 24 grid, `currentColor` so one set works on dark and light. */
 export const lineIcon = (paths) => function Icon({ size = 20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"

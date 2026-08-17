@@ -1,11 +1,5 @@
 import TagRow from './TagRow'
 
-/**
- * Read-only view of a user's portfolio, used by the admin panel.
- *
- * Everything states its absence rather than disappearing: a reviewer has to be
- * able to tell "set no technology areas" from "this panel doesn't show them".
- */
 const none = (text) => <span className="detail-none">{text}</span>
 
 export default function ProfileDetail({ p }) {
@@ -25,27 +19,31 @@ export default function ProfileDetail({ p }) {
 
       <h3>Publications ({p.publications?.length || 0})</h3>
       {p.publications?.length > 0 ? (
-        p.publications.map((pub) => (
-          <div key={pub.id} className="entry entry-stacked">
-            <strong>{pub.title}</strong>
-            <div className="entry-meta">
-              {[pub.authors?.join(', '), pub.venue, pub.year].filter(Boolean).join(' · ')}
+        <div className="entry-cols">
+          {p.publications.map((pub) => (
+            <div key={pub.id} className="entry entry-stacked">
+              <strong>{pub.title}</strong>
+              <div className="entry-meta">
+                {[pub.authors?.join(', '), pub.venue, pub.year].filter(Boolean).join(' · ')}
+              </div>
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       ) : <p className="detail-none">None listed.</p>}
 
       <h3>Patents ({p.patents?.length || 0})</h3>
       {p.patents?.length > 0 ? (
-        p.patents.map((pat) => (
-          <div key={pat.id} className="entry entry-stacked">
-            <strong>{pat.title}</strong>
-            <div className="entry-meta">
-              {[pat.assignee, pat.patent_number, pat.technology_domain]
-                .filter(Boolean).join(' · ')}
+        <div className="entry-cols">
+          {p.patents.map((pat) => (
+            <div key={pat.id} className="entry entry-stacked">
+              <strong>{pat.title}</strong>
+              <div className="entry-meta">
+                {[pat.assignee, pat.patent_number, pat.technology_domain]
+                  .filter(Boolean).join(' · ')}
+              </div>
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       ) : <p className="detail-none">None listed.</p>}
     </div>
   )

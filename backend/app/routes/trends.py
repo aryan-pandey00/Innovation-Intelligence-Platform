@@ -6,19 +6,19 @@ from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.models.research_profile import ResearchProfile
 from app.services import trends, profile_utils
+from app.schemas.common import MAX_QUERY_LENGTH
 
 router = APIRouter(prefix="/api/trends", tags=["Research Trends"])
 
 
 @router.get("")
 async def trend_analysis(
-    query: str = Query(..., min_length=2, description="Topic / domain / keyword"),
+    query: str = Query(..., min_length=2, max_length=MAX_QUERY_LENGTH, description="Topic / domain / keyword"),
     _user: User = Depends(get_current_user),
 ):
     try:
         return await trends.get_trends(query)
     except trends.ResearchQuotaExceeded as exc:
-        # A spent daily quota is not an outage; say so and say when it clears.
         raise HTTPException(status_code=503, detail=trends.quota_detail(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=502, detail="Research data source unavailable")
@@ -36,8 +36,6 @@ async def my_domain_trends(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Create your research profile first to see trends for your field.",
         )
-    # Research trends are an academic question, so this reads research domains
-    # and keywords — not technology areas, which are patent vocabulary.
     fields = profile_utils.research_terms(profile)
     if not fields:
         raise HTTPException(
@@ -47,7 +45,6 @@ async def my_domain_trends(
     try:
         result = await trends.get_trends(fields[0])
     except trends.ResearchQuotaExceeded as exc:
-        # A spent daily quota is not an outage; say so and say when it clears.
         raise HTTPException(status_code=503, detail=trends.quota_detail(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=502, detail="Research data source unavailable")

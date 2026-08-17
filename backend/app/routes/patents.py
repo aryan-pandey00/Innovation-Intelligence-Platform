@@ -6,13 +6,14 @@ from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.models.research_profile import ResearchProfile
 from app.services import patents_analysis, profile_utils
+from app.schemas.common import MAX_QUERY_LENGTH
 
 router = APIRouter(prefix="/api/patents", tags=["Patent Landscape"])
 
 
 @router.get("/landscape")
 async def landscape(
-    query: str = Query(..., min_length=2, description="Technology / topic / keyword"),
+    query: str = Query(..., min_length=2, max_length=MAX_QUERY_LENGTH, description="Technology / topic / keyword"),
     _user: User = Depends(get_current_user),
 ):
     try:
@@ -33,8 +34,6 @@ async def my_landscape(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Create your research profile first to see your patent landscape.",
         )
-    # Patents are indexed by technology, so this reads technology areas. Research
-    # domains only stand in when the user has none, and we say so.
     fields, fallback = profile_utils.technology_terms(profile)
     if not fields:
         raise HTTPException(

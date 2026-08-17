@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -5,9 +7,22 @@ from app.core.database import get_db
 from app.core.security import decode_token
 from app.models.user import User, UserRole
 
-SUPER_ADMIN_EMAIL = "aryan@admin.com"
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+
+def _issued_before_password_change(payload: dict, user: User) -> bool:
+    """Was this token minted before the account's password last changed?"""
+    changed_at = user.password_changed_at
+    if changed_at is None:
+        return False
+    issued = payload.get("iat")
+    if issued is None:
+        return True
+    if changed_at.tzinfo is None:
+        changed_at = changed_at.replace(tzinfo=timezone.utc)
+
+    issued_at = datetime.fromtimestamp(issued, tz=timezone.utc)
+    return issued_at < changed_at
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
@@ -25,11 +40,33 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise credentials_exception
+    if _issued_before_password_change(payload, user):
+        raise credentials_exception
     return user
 
 
 def is_super_admin(user: User) -> bool:
-    return user.email == SUPER_ADMIN_EMAIL
+    """Authority to manage other administrators."""
+    return bool(user.is_superuser)
+
+
+def count_super_admins(db: Session) -> int:
+    return db.query(User).filter(User.is_superuser.is_(True)).count()
+
+
+def count_admins(db: Session) -> int:
+    return db.query(User).filter(User.role == UserRole.ADMIN).count()
+
+
+def self_delete_block(db: Session, user: User) -> str | None:
+    """Why this account may not delete itself, or None if it may."""
+    if is_super_admin(user) and count_super_admins(db) == 1:
+        return ("You are the only super-admin. Grant super-admin to another "
+                "administrator before deleting this account.")
+    if user.role == UserRole.ADMIN and count_admins(db) == 1:
+        return ("You are the only administrator. Promote another account "
+                "before deleting this one.")
+    return None
 
 
 def require_role(*allowed_roles: UserRole):

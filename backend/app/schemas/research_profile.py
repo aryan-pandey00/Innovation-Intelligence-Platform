@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime, date
 
 
@@ -32,8 +32,7 @@ class PublicationResponse(PublicationBase):
     id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PatentBase(BaseModel):
@@ -68,8 +67,7 @@ class PatentResponse(PatentBase):
     id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ResearchProfileBase(BaseModel):
@@ -110,5 +108,4 @@ class ResearchProfileResponse(ResearchProfileBase):
     publications: list[PublicationResponse] = []
     patents: list[PatentResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

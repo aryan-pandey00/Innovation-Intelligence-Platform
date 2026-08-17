@@ -1,18 +1,13 @@
-"""One pass over a user's profile producing the innovation score, the funding
-ranking behind it and the commercialization advice drawn from both.
-
-Module 7 (scoring) and module 8 (commercialization) share this because they share
-their inputs: the advice quotes the same filtered records and the same funding
-match the score was computed from, so deriving them separately would let the two
-pages disagree about the same user.
-"""
+"""One pass over a user's profile producing the innovation score."""
 from fastapi import HTTPException, status
+import httpx
 from sqlalchemy.orm import Session
 
 from app.models.funding import FundingOpportunity
 from app.models.research_profile import ResearchProfile
+from app.models.user import User
 from app.services import (commercialization, funding_reco, innovation_scoring,
-                          profile_utils, trends)
+                          notifications, profile_utils, trends)
 
 
 async def build(query: str, db: Session, patent_query: str | None = None,
@@ -21,15 +16,9 @@ async def build(query: str, db: Session, patent_query: str | None = None,
     opportunities = db.query(FundingOpportunity).all()
     publications = list(profile.publications) if profile else []
     patents = list(profile.patents) if profile else []
-    # Only work about this technology counts toward the score. Funding keeps the
-    # whole portfolio: a grant match asks about the person, not one field.
     topical_pubs = profile_utils.publications_for(publications, query)
     topical_pats = profile_utils.patents_for(patents, query)
 
-    # Profile *and* technology together. The bare term threw away the role and
-    # country checks and disagreed with the dashboard on the same grant; the
-    # profile alone made Funding Relevance identical for every technology.
-    # `rank_by_query` survives only for a user with no profile at all.
     if profile is not None:
         funding_recs = funding_reco.rank_opportunities(
             profile=profile,
@@ -45,9 +34,10 @@ async def build(query: str, db: Session, patent_query: str | None = None,
         query, funding_recs, patent_query=patent_query,
         publications=topical_pubs, patents=topical_pats,
         portfolio_publications=len(publications), portfolio_patents=len(patents))
-    # advice must agree with the score, so it sees the same filtered records
     score["commercialization"] = commercialization.recommend(
-        score, funding_recs, publications=topical_pubs, patents=topical_pats)
+        score, funding_recs, publications=topical_pubs, patents=topical_pats,
+        user_role=user_role)
+    notifications.record_reading(db, query, score["signals"])
     return score
 
 
@@ -56,12 +46,33 @@ def profile_for(db: Session, user_id: int) -> ResearchProfile | None:
         ResearchProfile.user_id == user_id).first()
 
 
-def technology_focus(profile: ResearchProfile | None, module: str) -> tuple[list[str], bool]:
-    """The profile's technology terms, or a 400 saying which step is missing.
+async def for_user(db: Session, user_id: int) -> dict:
+    """Assess one innovator's technology using *their* portfolio."""
+    subject = db.query(User).filter(User.id == user_id).first()
+    if subject is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    profile = profile_for(db, user_id)
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{subject.full_name} has not built a portfolio yet.",
+        )
+    fields, fallback = technology_focus(
+        profile, f"an assessment of {subject.full_name}")
+    try:
+        result = await build(fields[0], db, profile=profile,
+                             user_role=subject.role.value)
+    except (trends.ResearchQuotaExceeded, httpx.HTTPError) as exc:
+        raise source_error(exc)
+    result["for_user"] = {"id": subject.id, "name": subject.full_name,
+                          "email": subject.email, "role": subject.role.value}
+    result["profile_fields"] = fields
+    result["fields_are_fallback"] = fallback
+    return result
 
-    Both entry points need the same two checks and the same two messages; `module`
-    only names what the reader was trying to open.
-    """
+
+def technology_focus(profile: ResearchProfile | None, module: str) -> tuple[list[str], bool]:
+    """The profile's technology terms, or a 400 saying which step is missing."""
     if profile is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

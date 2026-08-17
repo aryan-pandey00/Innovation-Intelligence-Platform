@@ -1,10 +1,4 @@
-"""Build real per-year patent counts and a record sample from EPO OPS.
-
-~12 count requests per topic plus one biblio page per year. OPS paces searches
-to a few per minute, so a topic takes minutes — which is why the results are
-cached on disk and never fetched during a web request.
-
-"""
+"""Build real per-year patent counts and a record sample from EPO OPS."""
 import asyncio
 import sys
 
@@ -14,15 +8,12 @@ from app.services import epo_ops
 from app.services import patents_analysis as pa
 from app.services import profile_utils
 
-# ~12 paced searches each, so the default list stays small. Real users' profile
-# fields are always included on top of it.
 CORE_TOPICS = [
     "energy storage", "battery", "solar energy", "electric vehicle",
     "machine learning", "artificial intelligence", "quantum computing",
     "semiconductor", "robotics", "biotechnology",
 ]
 
-# Only seeded with --all; useful for a demo where any chip should be warm.
 EXTRA_TOPICS = [
     "renewable energy", "gene editing", "hydrogen fuel", "clean energy",
     "photovoltaics", "grid technology", "cybersecurity", "nanotechnology",
@@ -30,30 +21,16 @@ EXTRA_TOPICS = [
     "wireless communication",
 ]
 
-# Records per year. 100 is the most OPS serves in a single request
-# (`epo_ops._PAGE`), and we make one request per year regardless — so this costs
-# no extra requests. Higher would mean paging inside each year. A small corpus
-# takes what exists: `wind energy` yields 152 records however this is set.
 PER_YEAR_SAMPLE = 100
 
-
-# Samples built before applicant names were queried by EPO's own spelling. Those
-# counts are wrong rather than missing — `Amazon Technology Inc.` resolved to 5
-# against 12 sample appearances — so they are refetched, not kept.
 _COUNT_BASIS = "raw-epodoc"
 
 
 async def _recount(topic: str, sample: dict, corpus_total: int | None,
                    force: bool = False) -> bool:
-    """Refetch this sample's applicant counts. False means OPS closed on us.
-
-    Progress is saved whether or not the topic finishes, so a run interrupted at
-    the 39th of 40 names resumes there rather than starting the topic again.
-    """
+    """Refetch this sample's applicant counts."""
     candidates = pa.count_candidates(sample["records"])
     resuming = sample.get("count_basis") == _COUNT_BASIS and not force
-    # Counts from before names were queried in EPO's own spelling are wrong rather
-    # than missing, so a first pass starts empty instead of trusting them.
     counts = dict(sample.get("applicant_counts") or {}) if resuming else {}
     done = set(sample.get("counted_names") or []) if resuming else set()
     todo = len(candidates) - len(done)
@@ -82,7 +59,7 @@ async def _recount(topic: str, sample: dict, corpus_total: int | None,
 
 
 async def _counts_only(topics: list[str], force: bool) -> int:
-    """Recount applicants against existing samples. No biblio pages, no series."""
+    """Recount applicants against existing samples."""
     done = skipped = 0
     for i, topic in enumerate(topics, 1):
         sample = pa._load_sample(topic)
@@ -90,8 +67,6 @@ async def _counts_only(topics: list[str], force: bool) -> int:
             print(f"[{i}/{len(topics)}] skip '{topic}' (no sample yet)")
             skipped += 1
             continue
-        # Completeness is decided inside _recount, against the candidate list —
-        # a topic stamped with the new basis may still be a part-finished run.
         series = pa._load_series(topic) or {}
         print(f"[{i}/{len(topics)}] '{topic}' — {len(sample['records'])} records, "
               f"field {series.get('total')}", flush=True)
@@ -108,11 +83,7 @@ async def _counts_only(topics: list[str], force: bool) -> int:
 
 
 def _profile_fields() -> list[str]:
-    """Technology areas real users have, so their chips hit the cache.
-
-    Technology terms only: seeding every profile field once cached `fusion` and
-    `resources` as if they were technologies.
-    """
+    """Technology areas real users have, so their chips hit the cache."""
     db = SessionLocal()
     try:
         terms: list[str] = []
@@ -154,7 +125,6 @@ async def main() -> int:
     for i, topic in enumerate(topics, 1):
         existing = pa._load_series(topic)
         expected_basis = epo_ops.base_query(topic)[1]
-        # a phrase-built series is stale once the term gains a CPC mapping
         stale = existing is not None and existing.get("query_basis") != expected_basis
         need_counts = force or existing is None or stale
         need_sample = force or pa._load_sample(topic) is None
@@ -177,7 +147,6 @@ async def main() -> int:
             print(f"    FAILED: {exc}")
             if exc.blocked:
                 if exc.retry_after:
-                    # OPS does not document the unit; report both readings
                     secs, ms = exc.retry_after, exc.retry_after / 1000
                     print(f"    OPS asked us to wait {exc.retry_after:.0f} "
                           f"(≈{ms / 60:.0f} min if milliseconds, "
@@ -198,7 +167,6 @@ async def main() -> int:
             done += 1
             continue
 
-        # same pass, same budget: a date-balanced sample for names and clusters
         try:
             sample = await epo_ops.sample_records(topic, series["by_year"],
                                                  per_year=PER_YEAR_SAMPLE)
@@ -206,15 +174,12 @@ async def main() -> int:
             print(f"    sample {len(sample['records'])} records across "
                   f"{len(sample['years_covered'])} years, {named} distinct applicants")
 
-            # True field counts, which are what the leaderboard ranks on. Without
-            # them the UI can only show sample appearances and must say so.
             if not await _recount(topic, sample, series.get("total")):
                 pa.save_sample(topic, sample)
                 print("    stopping — rerun later")
                 break
 
             pa.save_sample(topic, sample)
-            # warm the derived block, so no web request pays for clustering
             pa.build_derived(topic, sample["records"],
                              sample.get("applicant_counts"), series.get("total"),
                              sample.get("candidates_tested"))

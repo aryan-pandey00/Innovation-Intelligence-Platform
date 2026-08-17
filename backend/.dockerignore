@@ -1,0 +1,20 @@
+# The venv is built for the host's OS and Python, and copying it in would shadow the
+# packages the image installed for itself.
+venv/
+.venv/
+
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets never belong in an image layer; configuration arrives through the environment.
+.env
+.env.*
+
+# Keeps a test runner, and any credentials a test config carries, out of the runtime image.
+tests/
+requirements-dev.txt
+pytest.ini
+.pytest_cache/
+.coverage
+htmlcov/

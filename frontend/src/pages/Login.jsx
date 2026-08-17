@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { authService, extractErrorMessage } from '../services/api'
 import AuthShell from '../components/AuthShell'
 import { IconEye, IconEyeOff } from '../components/ui/icons'
@@ -11,17 +11,18 @@ export default function Login() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
+  const notice = useLocation().state?.notice
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (busy) return          // a double click used to fire two login requests
+    if (busy) return
     setBusy(true)
     setError('')
     try {
       const res = await authService.login(email, password)
       localStorage.setItem('token', res.data.access_token)
       authService.setCachedUser(res.data.user)
-      navigate(res.data.user.role === 'admin' ? '/admin' : '/dashboard')
+      navigate('/dashboard')
     } catch (err) {
       setError(extractErrorMessage(err, 'Could not sign you in.'))
       setBusy(false)
@@ -34,6 +35,7 @@ export default function Login() {
       subtitle="Sign in to your workspace."
       footer={<>New here? <Link to="/register">Create an account</Link></>}
     >
+      {notice && !error && <p className="save-ok">{notice}</p>}
       {error && <div className="error">{error}</div>}
       <form onSubmit={handleSubmit}>
         <div className="field">
@@ -43,8 +45,6 @@ export default function Login() {
         </div>
         <div className="field">
           <label htmlFor="password">Password</label>
-          {/* One reveal control. The native one is suppressed in CSS; without that,
-              Edge and Chrome drew their own eye beside ours. */}
           <div className="input-affix">
             <input id="password" type={showPassword ? 'text' : 'password'}
                    autoComplete="current-password" required
@@ -56,6 +56,9 @@ export default function Login() {
               {showPassword ? <IconEyeOff size={17} /> : <IconEye size={17} />}
             </button>
           </div>
+          <p className="field-help">
+            <Link to="/forgot-password">Forgot Password</Link>
+          </p>
         </div>
         <button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>

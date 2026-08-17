@@ -1,7 +1,3 @@
-/**
- * A labelled row of tags. `empty` states the absence rather than hiding the row,
- * which made "none set" indistinguishable from "not displayed here".
- */
 export default function TagRow({ label, items, empty }) {
   const has = items && items.length > 0
   if (!has && !empty) return null

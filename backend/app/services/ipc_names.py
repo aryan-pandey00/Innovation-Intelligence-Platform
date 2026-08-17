@@ -1,12 +1,6 @@
-"""Human names for IPC/CPC subclasses, so a cluster can be named by the
-classification its members share rather than by a TF-IDF term triple.
-
-Deliberately not exhaustive: unmapped codes fall back to the strongest bigram in
-the cluster. Adding a code here only improves a label, it never breaks one.
-"""
+"""Human names for IPC/CPC subclasses."""
 
 SUBCLASS_NAMES: dict[str, str] = {
-    # energy storage, generation, distribution
     "H01M": "Batteries & fuel cells",
     "H01G": "Capacitors & supercapacitors",
     "H02J": "Power supply & distribution circuits",
@@ -30,7 +24,6 @@ SUBCLASS_NAMES: dict[str, str] = {
     "Y02T": "Low-carbon transport",
     "Y02P": "Low-carbon manufacturing",
 
-    # materials & chemistry
     "C01B": "Non-metallic elements & compounds",
     "C01G": "Metal compounds",
     "C04B": "Ceramics, cement & concrete",
@@ -47,7 +40,6 @@ SUBCLASS_NAMES: dict[str, str] = {
     "B82Y": "Nanotechnology",
     "B32B": "Layered products",
 
-    # computing, AI, data
     "G06F": "Digital data processing",
     "G06N": "Machine learning & AI models",
     "G06Q": "Business & administrative data processing",
@@ -65,19 +57,16 @@ SUBCLASS_NAMES: dict[str, str] = {
     "H03K": "Pulse & switching circuits",
     "H03M": "Coding & conversion",
 
-    # communications
     "H04L": "Digital transmission & network security",
     "H04W": "Wireless networks",
     "H04N": "Image & video communication",
     "H04B": "Transmission systems",
     "H04Q": "Switching & selecting",
 
-    # semiconductors & electronics
     "H01L": "Semiconductor devices",
     "H10N": "Semiconductor devices (specialised)",
     "H05K": "Printed circuits & assemblies",
 
-    # robotics, vehicles, machinery
     "B25J": "Manipulators & robots",
     "B60L": "Electric vehicle propulsion",
     "B60W": "Vehicle control systems",
@@ -87,7 +76,6 @@ SUBCLASS_NAMES: dict[str, str] = {
     "G08G": "Traffic control systems",
     "F16H": "Gearing & transmissions",
 
-    # life sciences & medical
     "A61B": "Diagnosis & surgery",
     "A61K": "Medicinal preparations",
     "A61M": "Devices for introducing media into the body",
@@ -109,7 +97,7 @@ def name_for(code: str | None) -> str | None:
 
 
 def describe(code: str | None) -> str | None:
-    """Label including the code, e.g. 'Batteries & fuel cells (H01M)'."""
+    """Label including the code, e.g."""
     label = name_for(code)
     if not label:
         return None

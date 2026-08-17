@@ -1,18 +1,6 @@
-/**
- * Every destination in the app, named once.
- *
- * The analysis modules were once listed in four files with four wordings, which
- * is most of why the app read as unrelated pages. The sidebar, the dashboard
- * cards and the landing page all render from this list.
- *
- * `card: true` marks the six that appear as tool cards; the rest are navigation
- * only. Icons live here for the same reason the names do.
- */
 
-/* Line icons, 20x20 on a 24 grid. `currentColor` so one set works on the dark
-   sidebar and the light cards without a second palette. The factory lives in
-   `ui/icons.jsx` because control icons (the password reveal) need the same one. */
 import { lineIcon as svg } from './ui/icons'
+import { OWNERS } from '../roles'
 
 const IconDashboard = svg(
   <>
@@ -71,8 +59,6 @@ const IconInnovation = svg(
   </>
 )
 
-/* A route out of the lab: a path forking to a marked destination. Deliberately
-   not a rocket or a lightbulb — the page is a plan, not an aspiration. */
 const IconCommercialization = svg(
   <>
     <path d="M5 20V9.5A2.5 2.5 0 0 1 7.5 7H11" />
@@ -83,12 +69,25 @@ const IconCommercialization = svg(
   </>
 )
 
-/* A person, not sliders. The sliders icon was drawn for a page called Settings;
-   it now names personal information, so it takes the matching glyph. */
 const IconProfile = svg(
   <>
     <circle cx="12" cy="8" r="3.6" />
     <path d="M4.8 20a7.2 7.2 0 0 1 14.4 0" />
+  </>
+)
+
+const IconReports = svg(
+  <>
+    <path d="M6.5 3h7L18 7.5V19a2 2 0 0 1-2 2H6.5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+    <path d="M13 3v5h5" />
+    <path d="M8.5 13h7M8.5 16.5h4.5" />
+  </>
+)
+
+const IconAlerts = svg(
+  <>
+    <path d="M18 8.5a6 6 0 1 0-12 0c0 4.5-1.5 5.8-2 6.4a.6.6 0 0 0 .45 1h15.1a.6.6 0 0 0 .45-1c-.5-.6-2-1.9-2-6.4Z" />
+    <path d="M10.4 19a1.9 1.9 0 0 0 3.2 0" />
   </>
 )
 
@@ -99,11 +98,24 @@ const IconAdmin = svg(
   </>
 )
 
-/* Roles: '*' means every signed-in role. Kept identical to the previous
-   LINKS_BY_ROLE filtering so nobody gains or loses access from this refactor. */
+const IconAnnounce = svg(
+  <>
+    <path d="M4 10.5v3a1.5 1.5 0 0 0 1.5 1.5H8l6.5 4V6.5L8 10.5H5.5A1.5 1.5 0 0 0 4 12Z" />
+    <path d="M17.5 9.5a3.5 3.5 0 0 1 0 5" />
+    <path d="M8 15v3.5a1.5 1.5 0 0 0 3 0V17" />
+  </>
+)
+
+const IconResets = svg(
+  <>
+    <rect x="4.5" y="11" width="15" height="9" rx="2" />
+    <path d="M8 11V8a4 4 0 0 1 7.5-2" />
+    <path d="M12 14.5v2.5" />
+  </>
+)
+
 const EVERYONE = '*'
-const OWNERS = ['researcher', 'startup_founder']
-const OWNERS_AND_MANAGERS = ['researcher', 'startup_founder', 'innovation_manager']
+const OWNERS_AND_MANAGERS = [...OWNERS, 'innovation_manager']
 
 export const MODULES = [
   {
@@ -119,20 +131,25 @@ export const MODULES = [
     key: 'portfolio',
     to: '/portfolio',
     name: 'My Portfolio',
-    // Grouped with the Dashboard rather than Profile: both are about your own
-    // material rather than the world. Not under Account either — Portfolio is
-    // research content feeding all five analysis pages, where Profile is identity.
     group: 'Workspace',
     roles: OWNERS,
     card: false,
     Icon: IconPortfolio,
   },
   {
+    key: 'innovator',
+    to: '/innovator',
+    name: 'Innovator',
+    roles: ['admin', 'innovation_manager'],
+    card: false,
+    Icon: IconProfile,
+  },
+  {
     key: 'funding',
     to: '/funding',
     name: 'Funding Discovery',
     group: 'Discover',
-    roles: OWNERS,
+    roles: OWNERS_AND_MANAGERS,
     card: true,
     Icon: IconFunding,
     blurb: 'Grants ranked against your profile, with eligibility checked against your role and country.',
@@ -155,7 +172,7 @@ export const MODULES = [
     roles: OWNERS_AND_MANAGERS,
     card: true,
     Icon: IconPatents,
-    blurb: 'Who is patenting in your field, how activity has moved, and the themes running through it.',
+    blurb: 'Who is patenting in a technology, how activity has moved, and the themes running through it.',
   },
   {
     key: 'technology',
@@ -181,14 +198,48 @@ export const MODULES = [
     key: 'commercialization',
     to: '/commercialization',
     name: 'Commercialization',
-    // Its own destination, not only a tab inside the assessment. It was reachable
-    // from nowhere in the sidebar, the dashboard or any cross-page link, so a new
-    // user could only find it by noticing a second tab.
     group: 'Act',
     roles: OWNERS,
     card: true,
     Icon: IconCommercialization,
     blurb: 'The route from a technology to a product, a licence or a company, and what to do first.',
+  },
+  {
+    key: 'announcements',
+    to: '/announcements',
+    name: 'Announcements',
+    group: 'Act',
+    roles: ['admin'],
+    card: false,
+    Icon: IconAnnounce,
+  },
+  {
+    key: 'resets',
+    to: '/resets',
+    name: 'Password Resets',
+    group: 'Act',
+    roles: ['admin'],
+    card: false,
+    Icon: IconResets,
+  },
+  {
+    key: 'reports',
+    to: '/reports',
+    name: 'Reports',
+    group: 'Act',
+    roles: EVERYONE,
+    card: true,
+    Icon: IconReports,
+    blurb: 'Any analysis written down, as a spreadsheet or a PDF.',
+  },
+  {
+    key: 'notifications',
+    to: '/notifications',
+    name: 'Notifications',
+    group: 'Account',
+    roles: EVERYONE,
+    card: false,
+    Icon: IconAlerts,
   },
   {
     key: 'profile',
@@ -210,21 +261,33 @@ export const MODULES = [
   },
 ]
 
-/** Sidebar section order. Sections describe what you do there, which is why
- *  "Patents" and "My work" — headings over a single item each — are gone. */
 export const GROUP_ORDER = ['Workspace', 'Discover', 'Analyse', 'Act', 'Account']
 
 export const byKey = Object.fromEntries(MODULES.map((m) => [m.key, m]))
 
-/** The five tool cards, in display order. */
 export const CARD_MODULES = MODULES.filter((m) => m.card)
+
+const allows = (module, role) =>
+  module.roles === EVERYONE || module.roles.includes(role)
 
 export function visibleGroups(role) {
   return GROUP_ORDER
     .map((label) => ({
       label,
-      links: MODULES.filter((m) => m.group === label
-        && (m.roles === EVERYONE || m.roles.includes(role))),
+      links: MODULES.filter((m) => m.group === label && allows(m, role)),
     }))
     .filter((g) => g.links.length > 0)
+}
+
+export const HOME = '/dashboard'
+
+export function moduleForPath(path) {
+  return MODULES
+    .filter((m) => path === m.to || path.startsWith(`${m.to}/`))
+    .sort((a, b) => b.to.length - a.to.length)[0] || null
+}
+
+export function canOpen(role, path) {
+  const module = moduleForPath(path)
+  return module ? allows(module, role) : true
 }

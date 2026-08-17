@@ -6,21 +6,16 @@ import {
 import { trendsService, authService, extractErrorMessage } from '../services/api'
 import Loading from '../components/Loading'
 import FieldChips from '../components/FieldChips'
+import OwnFieldNote from '../components/OwnFieldNote'
+import { useSession } from '../services/session'
 import { PageHeader, Card, StatCard, StatGrid, RankedList } from '../components/ui'
 import {
   CHART_COLORS, axisProps, gridProps, tooltipProps, compactNumber, seriesProps,
   areaGradient, pointLabel,
 } from '../components/ui/chartTheme'
 import { fmtCount } from '../components/ui/format'
-import { byKey } from '../components/modules'
+import NextRow from '../components/NextRow'
 
-/**
- * Shares of publications keep one decimal where growth rates do not.
- *
- * A growth figure from year-on-year counts implies precision it does not have.
- * A topic's share is an exact ratio of two large counts, and the leaders sit at
- * 1.5 / 1.5 / 1.3 / 1.3 / 1.2 — rounding would collapse five topics into one.
- */
 const share = (n) => (n == null ? '—' : `${n}%`)
 
 export default function Trends() {
@@ -29,16 +24,16 @@ export default function Trends() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [noOwnField, setNoOwnField] = useState(false)
   const navigate = useNavigate()
+  const { role } = useSession()
 
   useEffect(() => {
     trendsService.myDomain()
       .then((res) => { setData(res.data); setQuery(res.data.query); setFields(res.data.profile_fields || []) })
       .catch((err) => {
         if (err.response?.status === 401) { authService.logout(); navigate('/login') }
-        // Anything else has to be shown. Without this the page fell through to its
-        // "search above" empty card, so a rate-limited data source looked exactly
-        // like an empty profile.
+        else if (err.response?.status === 400) setNoOwnField(true)
         else setError(extractErrorMessage(err, 'Could not load trends'))
       })
       .finally(() => setLoading(false))
@@ -62,8 +57,6 @@ export default function Trends() {
   const rising = data?.emerging_topics || []
   const leader = rising[0]
   const win = data?.emerging_window
-  const Technology = byKey.technology.Icon
-  const Patents = byKey.patents.Icon
 
   return (
     <div className="dashboard">
@@ -73,7 +66,7 @@ export default function Trends() {
 
         <form onSubmit={analyze} className="search-row">
           <input placeholder="Explore a research topic, e.g. quantum computing"
-                 aria-label="Research topic"
+                 aria-label="Research topic" maxLength={200}
                  value={query} onChange={(e) => setQuery(e.target.value)} />
           <button type="submit">Analyse</button>
         </form>
@@ -85,10 +78,14 @@ export default function Trends() {
 
         {!loading && !data && (
           <Card>
-            <p className="empty-note">
-              Search a topic above, or add research domains to your portfolio to see
-              trends for your field automatically.
-            </p>
+            <OwnFieldNote
+              role={role}
+              verb="explore"
+              detail={noOwnField
+                ? 'Search a topic above, or add research domains to your portfolio '
+                  + 'and this page will follow your own field automatically.'
+                : undefined}
+            />
           </Card>
         )}
 
@@ -102,9 +99,6 @@ export default function Trends() {
                 hint="Papers with this phrase in the title or abstract. Full-text search
                       returns several times as many, mostly passing mentions."
               />
-              {/* This slot used to read "198 Research topics" for every term: it counted
-                  the rows of an OpenAlex grouped response, which caps at 200. How much
-                  of the literature is recent moves when the field does. */}
               <StatCard
                 value={data.recent_share != null ? `${data.recent_share}%` : '—'}
                 label={`Published since ${data.recent_from_year}`}
@@ -133,11 +127,6 @@ export default function Trends() {
                   <YAxis tickFormatter={compactNumber} width={52} {...axisProps} />
                   <Tooltip {...tooltipProps}
                            formatter={(v) => [v.toLocaleString('en-US'), 'Publications']} />
-                  {/* Filled and dotted from the shared theme: the same treatment the
-                      patent trend gets, so the two charts read as one product. */}
-                  {/* fillOpacity 1 because the gradient already fades 18% to 0 —
-                      Recharts otherwise multiplies it by its 0.6 default and the
-                      fill all but disappears. */}
                   <Area dataKey="count" fill="url(#worksFill)" fillOpacity={1}
                         {...seriesProps(CHART_COLORS.research)}
                         label={pointLabel({ data: data.works_by_year, dataKey: 'count' })} />
@@ -149,8 +138,6 @@ export default function Trends() {
               </p>
             </Card>
 
-            {/* A bar chart of ten ranked magnitudes with truncated labels; a list
-                shows the same information and fits the full topic names. */}
             <Card title="The biggest topics in this field"
                   sub="Share of publications touching each topic">
               <RankedList items={data.hotspots} labelKey="topic" valueKey="count"
@@ -175,8 +162,6 @@ export default function Trends() {
                     {rising.map((t) => (
                       <li key={t.topic} className="rising-row">
                         <span className="ranked-label" title={t.topic}>{t.topic}</span>
-                        {/* Both ends, not the delta: "3.1% → 6.3%" reads as a doubling
-                            where "+3.2%" leaves the reader working out 3.2% of what. */}
                         <span className="rise-shares">
                           <span className="rise-was">{share(t.earlier_share)}</span>
                           <span className="rise-arrow" aria-hidden="true">→</span>
@@ -206,17 +191,12 @@ export default function Trends() {
               ))}
             </Card>
 
-            {/* The page used to end on a citation list with nowhere to go next. */}
-            <div className="next-row">
-              <Link to="/technology" className="next-card">
-                <Technology size={18} />
-                <span><strong>Check where this sits</strong>Early research or already industrial</span>
-              </Link>
-              <Link to="/patents" className="next-card">
-                <Patents size={18} />
-                <span><strong>See who is patenting</strong>The themes running through the filings</span>
-              </Link>
-            </div>
+            <NextRow items={[
+              { key: 'technology', title: 'Check where this sits',
+                note: 'Early research or already industrial' },
+              { key: 'patents', title: 'See who is patenting',
+                note: 'The themes running through the filings' },
+            ]} />
           </>
         )}
     </div>

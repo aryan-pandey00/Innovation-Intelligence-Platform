@@ -1,25 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { profileService, authService, extractErrorMessage } from '../services/api'
-import Loading from '../components/Loading'
+import { authService, extractErrorMessage } from '../services/api'
+import { useSession } from '../services/session'
+import { isOwner, roleLabel } from '../roles'
+import { canOpen } from '../components/modules'
+import OrganisationCard from '../components/profile/OrganisationCard'
+import SecurityQuestionFields from '../components/SecurityQuestionFields'
 import { PageHeader, Card } from '../components/ui'
-
-const ROLE_LABEL = {
-  researcher: 'Researcher',
-  startup_founder: 'Startup Founder',
-  innovation_manager: 'Innovation Manager',
-  admin: 'Administrator',
-}
-
-const ORG_FIELDS = {
-  organization: '', organization_type: '', country: '', website: '', orcid_id: '',
-}
-const snapshot = (p) => JSON.stringify(Object.keys(ORG_FIELDS).map((k) => p[k] ?? ''))
+import { IconEye, IconEyeOff } from '../components/ui/icons'
 
 const MAX_NAME = 120
 const cleanName = (s) => s.trim().replace(/\s+/g, ' ')
 
-function DisplayName() {
+function DisplayName({ owner }) {
   const cached = () => authService.getCachedUser().full_name || ''
   const [saved, setSaved] = useState(cached)
   const [name, setName] = useState(cached)
@@ -52,7 +45,9 @@ function DisplayName() {
       <div>
         <strong>Display name</strong>
         <p className="muted" style={{ marginTop: 4 }}>
-          Shown to you across the platform and to administrators reviewing your work.
+          {owner
+            ? 'Shown to you across the platform and to administrators reviewing your work.'
+            : 'Shown to you across the platform, and beside anything you change here.'}
         </p>
         {error && <div className="error" style={{ marginTop: 8, marginBottom: 0 }}>{error}</div>}
         {msg && !error && <p className="save-ok">{msg}</p>}
@@ -70,85 +65,191 @@ function DisplayName() {
   )
 }
 
-export default function Profile() {
-  const [org, setOrg] = useState(ORG_FIELDS)
-  const [saved, setSaved] = useState(() => snapshot(ORG_FIELDS))
-  const [exists, setExists] = useState(false)
-  const [status, setStatus] = useState('')
-  const [loading, setLoading] = useState(true)
+const MIN_PASSWORD = 8
+
+function ChangePassword() {
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [show, setShow] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
-  const user = authService.getCachedUser()
 
-  useEffect(() => {
-    profileService.get()
-      .then((res) => {
-        const loaded = { ...ORG_FIELDS, ...res.data }
-        setOrg(loaded)
-        setSaved(snapshot(loaded))
-        setExists(true)
-      })
-      .catch((err) => {
-        if (err.response?.status === 401) { authService.logout(); navigate('/login') }
-      })
-      .finally(() => setLoading(false))
-  }, [navigate])
-
-  const set = (field) => (e) => {
-    setOrg((cur) => ({ ...cur, [field]: e.target.value }))
-    setStatus('')
-  }
-  const dirty = snapshot(org) !== saved
-
-  const save = async (e) => {
+  const submit = async (e) => {
     e.preventDefault()
-    setStatus('Saving…')
+    if (busy || !current || next.length < MIN_PASSWORD) return
+    setBusy(true); setError(''); setMsg('')
     try {
-      // Merge with the stored record so saving here cannot wipe the portfolio
-      // fields that live on the same row.
-      const current = exists ? (await profileService.get()).data : {}
-      const call = exists ? profileService.update : profileService.create
-      const res = await call({ ...current, ...org })
-      const fresh = { ...ORG_FIELDS, ...res.data }
-      setOrg(fresh)
-      setSaved(snapshot(fresh))
-      setExists(true)
-      setStatus('Saved')
+      await authService.changePassword(current, next)
+      setMsg('Password changed. Signing you out…')
+      setTimeout(() => {
+        authService.logout()
+        navigate('/login', { replace: true, state: {
+          notice: 'Password changed. Sign in with the new one.',
+        } })
+      }, 900)
     } catch (err) {
-      setStatus(extractErrorMessage(err, 'Could not save your details.'))
+      setError(extractErrorMessage(err, 'Could not change your password.'))
+      setBusy(false)
     }
   }
 
+  return (
+    <Card title="Password">
+      {error && <div className="error">{error}</div>}
+      {msg && !error && <p className="save-ok">{msg}</p>}
+      <form className="account-row" onSubmit={submit}>
+        <div>
+          <strong>Change your password</strong>
+          <p className="muted" style={{ marginTop: 4, maxWidth: '52ch' }}>
+            You will be signed out everywhere, including anywhere still open on
+            another device. Cannot remember your current one? Use{' '}
+            <strong>Forgot Password</strong> on the sign-in page.
+          </p>
+        </div>
+        <div className="password-change">
+          <input type="password" autoComplete="current-password"
+                 aria-label="Current password" placeholder="Current password"
+                 value={current} onChange={(e) => setCurrent(e.target.value)} />
+          <div className="input-affix">
+            <input type={show ? 'text' : 'password'} autoComplete="new-password"
+                   aria-label="New password" placeholder="New password"
+                   minLength={MIN_PASSWORD} maxLength={72}
+                   value={next} onChange={(e) => setNext(e.target.value)} />
+            <button type="button" className="affix-btn"
+                    aria-label={show ? 'Hide password' : 'Show password'}
+                    aria-pressed={show} onClick={() => setShow((v) => !v)}>
+              {show ? <IconEyeOff size={17} /> : <IconEye size={17} />}
+            </button>
+          </div>
+          <button type="submit" className="save-btn"
+                  disabled={busy || !current || next.length < MIN_PASSWORD}
+                  title={next.length < MIN_PASSWORD
+                    ? `At least ${MIN_PASSWORD} characters` : ''}>
+            {busy ? 'Changing…' : 'Change password'}
+          </button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
+function SecurityQuestions() {
+  const [state, setState] = useState(null)
+  const [pairs, setPairs] = useState([
+    { question: '', answer: '' }, { question: '', answer: '' },
+  ])
+  const [msg, setMsg] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    authService.securityQuestions()
+      .then((res) => {
+        setState(res.data)
+        if (res.data.questions.length === 2) {
+          setPairs(res.data.questions.map((q) => ({ question: q.question, answer: '' })))
+        }
+      })
+      .catch(() => setError('Could not read your security questions.'))
+  }, [])
+
+  const change = (i, field, value) =>
+    setPairs(pairs.map((p, j) => (j === i ? { ...p, [field]: value } : p)))
+
+  const ready = pairs.every((p) => p.question.trim().length >= 8 && p.answer.trim())
+    && pairs[0].question.trim().toLowerCase() !== pairs[1].question.trim().toLowerCase()
+
+  const save = async (e) => {
+    e.preventDefault()
+    if (!ready || busy) return
+    setBusy(true); setError(''); setMsg('')
+    try {
+      await authService.setSecurityQuestions(pairs)
+      setMsg('Saved. Keep the answers somewhere you will remember.')
+      setPairs(pairs.map((p) => ({ ...p, answer: '' })))
+      setState({ ...state, configured: true })
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Could not save your questions.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!state) return null
+
+  return (
+    <Card title="Security questions">
+      {error && <div className="error">{error}</div>}
+      {msg && !error && <p className="save-ok">{msg}</p>}
+      {!state.configured ? (
+        <div className="notice">
+          <strong>Your account cannot be recovered yet.</strong> No email is sent, so
+          without these an administrator has no way to check it is you.
+        </div>
+      ) : (
+        <p className="sq-status">
+          <strong>Set.</strong> An administrator checks these if you are ever locked
+          out. Saving again replaces both.
+        </p>
+      )}
+      <form onSubmit={save} className="security-questions">
+        <SecurityQuestionFields pairs={pairs} onChange={change}
+                                suggestions={state.suggestions || []}
+                                idPrefix="sq" />
+        <button type="submit" className="save-btn" disabled={!ready || busy}
+                title={ready ? '' : 'Two different questions, both answered'}>
+          {busy ? 'Saving…' : state.configured ? 'Replace questions' : 'Save questions'}
+        </button>
+      </form>
+    </Card>
+  )
+}
+
+export default function Profile() {
+  const [error, setError] = useState('')
+  const navigate = useNavigate()
+  const { user, role, verified } = useSession()
+  const owner = isOwner(role)
+  const deleteBlock = user?.delete_block || ''
+  const deleteKnown = typeof user?.deletable === 'boolean' || verified
+
   const deleteAccount = async () => {
     if (!window.confirm(
-      'This permanently deletes your account, portfolio, publications and patents. '
-      + 'This cannot be undone. Continue?'
+      owner
+        ? 'This permanently deletes your account, portfolio, publications and '
+          + 'patents. This cannot be undone. Continue?'
+        : 'This permanently deletes your account, and a staff account cannot be '
+          + 'created by signing up — only another administrator can restore it. '
+          + 'This cannot be undone. Continue?'
     )) return
     try {
       await authService.deleteMyAccount()
       authService.logout()
-      navigate('/register')
-    } catch {
-      setStatus('Could not delete your account. Please try again.')
+      navigate('/')
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Could not delete your account. Please try again.'))
     }
   }
 
-  if (loading) return <Loading message="Loading your profile…" />
-
   return (
     <div className="dashboard">
-      {/* Not "Settings": there is no theme, no notifications, no preferences. It
-          holds personal information, so it is named for that. The pointer to My
-          Portfolio is the other half of the split and is mirrored there. */}
       <PageHeader trail="Account" title="Profile">
-        Your name, organisation and contact details. What you research lives in{' '}
-        <Link to="/portfolio" className="inline-link">My Portfolio</Link>.
+        {owner ? (
+          <>
+            Your name, organisation and contact details. What you research lives in{' '}
+            <Link to="/portfolio" className="inline-link">My Portfolio</Link>.
+          </>
+        ) : (
+          <>Your name, sign-in email and role. This account runs the platform, so it
+            has no research portfolio.</>
+        )}
       </PageHeader>
 
-      {status && <div className="status">{status}</div>}
-
       <Card title="Name and sign-in">
-        <DisplayName />
-        <div className="account-row account-readonly">
+        <DisplayName owner={owner} />
+        <div className="account-row">
           <div>
             <strong>Email and role</strong>
             <p className="muted" style={{ marginTop: 4 }}>
@@ -156,58 +257,47 @@ export default function Profile() {
             </p>
           </div>
           <div className="readonly-pair">
-            <span>{user.email}</span>
-            <span className="role-badge">{ROLE_LABEL[user.role] || user.role}</span>
+            <span>{user?.email}</span>
+            <span className="role-line">
+              <span className="role-badge">{roleLabel(role)}</span>
+              {user?.is_superuser && (
+                <span className="super-tag" title="You can manage other administrators">
+                  Super
+                </span>
+              )}
+            </span>
           </div>
         </div>
       </Card>
 
-      <form onSubmit={save}>
-        <Card
-          title="Organisation"
-          sub="Country is used to check whether you are eligible for location-restricted funding."
-        >
-          <div className="grid-2">
-            <div className="field">
-              <label htmlFor="org">Organisation</label>
-              <input id="org" value={org.organization || ''} onChange={set('organization')} />
-            </div>
-            <div className="field">
-              <label htmlFor="orgtype">Organisation type</label>
-              <input id="orgtype" value={org.organization_type || ''} onChange={set('organization_type')}
-                     placeholder="University, company, research council" />
-            </div>
-            <div className="field">
-              <label htmlFor="country">Country</label>
-              <input id="country" value={org.country || ''} onChange={set('country')}
-                     placeholder="Needed to confirm funding eligibility" />
-            </div>
-            <div className="field">
-              <label htmlFor="website">Website</label>
-              <input id="website" value={org.website || ''} onChange={set('website')} />
-            </div>
-            <div className="field">
-              <label htmlFor="orcid">ORCID iD</label>
-              <input id="orcid" value={org.orcid_id || ''} onChange={set('orcid_id')}
-                     placeholder="0000-0000-0000-0000" />
-            </div>
-          </div>
-          <div className="form-actions">
-            <button type="submit" className="save-btn" disabled={!dirty}
-                    title={dirty ? '' : 'No unsaved changes'}>
-              Save details
-            </button>
-          </div>
-        </Card>
-      </form>
+      <ChangePassword />
+      <SecurityQuestions />
+
+      {owner && <OrganisationCard role={role} />}
 
       <Card title="Delete account" className="account-card">
+        {error && <div className="error">{error}</div>}
         <div className="account-row">
           <p className="muted" style={{ maxWidth: '52ch' }}>
-            Permanently removes your account and everything attached to it — your
-            portfolio, publications and patents. This cannot be undone.
+            {deleteBlock || (owner
+              ? 'Permanently removes your account and everything attached to it — '
+                + 'your portfolio, publications and patents. This cannot be undone.'
+              : 'Permanently removes your account. This cannot be undone, and staff '
+                + 'accounts cannot be re-created by signing up.')}
           </p>
-          <button className="delete-account-btn" onClick={deleteAccount}>Delete account</button>
+          {deleteBlock
+            ? (
+              canOpen(role, '/admin')
+                ? <Link to="/admin" className="inline-link nowrap">Manage administrators →</Link>
+                : <span className="cell-note">Not available for this account</span>
+            )
+            : (
+              <button className="delete-account-btn" onClick={deleteAccount}
+                      disabled={!deleteKnown}
+                      title={deleteKnown ? '' : 'Checking whether this account can be removed'}>
+                {deleteKnown ? 'Delete account' : 'Checking…'}
+              </button>
+            )}
         </div>
       </Card>
     </div>

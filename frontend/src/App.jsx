@@ -1,30 +1,30 @@
+import { lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
-import Dashboard from './pages/Dashboard'
-import Portfolio from './pages/Portfolio'
-import Profile from './pages/Profile'
-import Funding from './pages/Funding'
-import Trends from './pages/Trends'
-import PatentLandscape from './pages/PatentLandscape'
-import TechIntelligence from './pages/TechIntelligence'
-import Innovation from './pages/Innovation'
-import Commercialization from './pages/Commercialization'
-import AdminPanel from './pages/AdminPanel'
+import ForgotPassword from './pages/ForgotPassword'
 import Layout from './components/Layout'
+import RequireAccess from './components/RequireAccess'
 
-function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('token')
-  return token ? children : <Navigate to="/login" />
-}
-
-function AdminRoute({ children }) {
-  const token = localStorage.getItem('token')
-  if (!token) return <Navigate to="/login" />
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
-  return user.role === 'admin' ? children : <Navigate to="/dashboard" />
-}
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Portfolio = lazy(() => import('./pages/Portfolio'))
+const Profile = lazy(() => import('./pages/Profile'))
+const Funding = lazy(() => import('./pages/Funding'))
+const Trends = lazy(() => import('./pages/Trends'))
+const PatentLandscape = lazy(() => import('./pages/PatentLandscape'))
+const TechIntelligence = lazy(() => import('./pages/TechIntelligence'))
+const Innovation = lazy(() => import('./pages/Innovation'))
+const Commercialization = lazy(() => import('./pages/Commercialization'))
+const Innovator = lazy(() => import('./pages/Innovator'))
+const Reports = lazy(() => import('./pages/Reports'))
+const Notifications = lazy(() => import('./pages/Notifications'))
+const AdminPanel = lazy(() => import('./pages/AdminPanel'))
+const AccountsPanel = lazy(() => import('./components/admin/AccountsPanel'))
+const CataloguePanel = lazy(() => import('./components/admin/CataloguePanel'))
+const SourcesPanel = lazy(() => import('./components/admin/SourcesPanel'))
+const AnnouncementsPanel = lazy(() => import('./components/admin/AnnouncementsPanel'))
+const ResetsPanel = lazy(() => import('./components/admin/ResetsPanel'))
 
 export default function App() {
   return (
@@ -32,41 +32,30 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
-      <Route element={<Layout />}>
-        <Route path="/dashboard" element={
-          <ProtectedRoute><Dashboard /></ProtectedRoute>
-        } />
-        <Route path="/portfolio" element={
-          <ProtectedRoute><Portfolio /></ProtectedRoute>
-        } />
-        {/* Not /settings: this page holds a display name, email, role, organisation,
-            country, ORCID and account deletion, none of which is a setting. */}
-        <Route path="/profile" element={
-          <ProtectedRoute><Profile /></ProtectedRoute>
-        } />
+      <Route element={<RequireAccess><Layout /></RequireAccess>}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/portfolio" element={<Portfolio />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Navigate to="/profile" replace />} />
-        <Route path="/funding" element={
-          <ProtectedRoute><Funding /></ProtectedRoute>
-        } />
-        <Route path="/trends" element={
-          <ProtectedRoute><Trends /></ProtectedRoute>
-        } />
-        <Route path="/patents" element={
-          <ProtectedRoute><PatentLandscape /></ProtectedRoute>
-        } />
-        <Route path="/technology" element={
-          <ProtectedRoute><TechIntelligence /></ProtectedRoute>
-        } />
-        <Route path="/innovation" element={
-          <ProtectedRoute><Innovation /></ProtectedRoute>
-        } />
-        <Route path="/commercialization" element={
-          <ProtectedRoute><Commercialization /></ProtectedRoute>
-        } />
-        <Route path="/admin" element={
-          <AdminRoute><AdminPanel /></AdminRoute>
-        } />
+        <Route path="/funding" element={<Funding />} />
+        <Route path="/trends" element={<Trends />} />
+        <Route path="/patents" element={<PatentLandscape />} />
+        <Route path="/technology" element={<TechIntelligence />} />
+        <Route path="/innovation" element={<Innovation />} />
+        <Route path="/innovator/:id" element={<Innovator />} />
+        <Route path="/commercialization" element={<Commercialization />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/announcements" element={<AnnouncementsPanel />} />
+        <Route path="/resets" element={<ResetsPanel />} />
+        <Route path="/admin/resets" element={<Navigate to="/resets" replace />} />
+        <Route path="/admin" element={<AdminPanel />}>
+          <Route index element={<AccountsPanel />} />
+          <Route path="funding" element={<CataloguePanel />} />
+          <Route path="sources" element={<SourcesPanel />} />
+        </Route>
       </Route>
     </Routes>
   )

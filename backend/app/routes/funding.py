@@ -12,6 +12,7 @@ from app.schemas.funding import (
     LiveOpportunity, RankedOpportunity,
 )
 from app.services import funding_reco, grants_gov, world_bank, ukri
+from app.schemas.common import MAX_QUERY_LENGTH
 
 router = APIRouter(prefix="/api/funding", tags=["Funding Discovery"])
 
@@ -40,7 +41,7 @@ def list_opportunities(
 
 @router.get("/search", response_model=list[FundingOpportunityResponse])
 def search_opportunities(
-    q: str = Query(..., min_length=2, description="Search text"),
+    q: str = Query(..., min_length=2, max_length=MAX_QUERY_LENGTH, description="Search text"),
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
@@ -100,7 +101,7 @@ async def recommendations(
 
     if eligible_only:
         items = [r for r in items if r["eligible"]]
-    items.sort(key=lambda r: (not r["eligible"], -r["relevance_score"]))
+    items.sort(key=funding_reco.recommendation_order)
     return items[:limit]
 
 
@@ -126,15 +127,46 @@ def get_opportunity(opp_id: int, db: Session = Depends(get_db),
     return opp
 
 
+def _check_amounts(data: FundingOpportunityCreate) -> None:
+    """A reversed range renders as "USD 500K–100K" and scores as if it were real."""
+    if (data.amount_min is not None and data.amount_max is not None
+            and data.amount_min > data.amount_max):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The minimum amount cannot be greater than the maximum.",
+        )
+
+
 @router.post("", response_model=FundingOpportunityResponse,
              status_code=status.HTTP_201_CREATED)
+
 def create_opportunity(
     data: FundingOpportunityCreate,
     db: Session = Depends(get_db),
     _admin: User = Depends(require_role(UserRole.ADMIN)),
 ):
+    _check_amounts(data)
     opp = FundingOpportunity(**data.model_dump())
     db.add(opp)
+    db.commit()
+    db.refresh(opp)
+    return opp
+
+
+@router.put("/{opp_id}", response_model=FundingOpportunityResponse)
+def update_opportunity(
+    opp_id: int,
+    data: FundingOpportunityCreate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Full replace, not a patch."""
+    opp = db.query(FundingOpportunity).filter(FundingOpportunity.id == opp_id).first()
+    if opp is None:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    _check_amounts(data)
+    for field, value in data.model_dump().items():
+        setattr(opp, field, value)
     db.commit()
     db.refresh(opp)
     return opp

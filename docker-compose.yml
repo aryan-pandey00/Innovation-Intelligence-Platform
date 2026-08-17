@@ -1,0 +1,62 @@
+# The whole platform: database, API, web, on http://localhost:8080.
+# Start-up and seeding commands are in the README's Quick Start.
+
+name: innovation-platform
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-innovation_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      # `:?` refuses to start rather than defaulting. A password from a committed file
+      # is not a password.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # Accepting connections is later than the container being up; without this the
+      # API starts against a port that is listening but not serving.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-innovation_platform}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    # Not published: an exposed database is how a dev stack becomes an incident.
+
+  api:
+    build: ./backend
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-innovation_platform}
+      # No default: production refuses the repository's key, and this is where the real
+      # one arrives.
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      # Never 0 here. nginx appends X-Forwarded-For and uvicorn runs with
+      # --forwarded-allow-ips "*", so at 0 the rate-limit key is one the caller wrote.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      # A fallback for direct API use; the browser always calls its own origin.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_JSON: ${LOG_JSON:-true}
+      OPS_CONSUMER_KEY: ${OPS_CONSUMER_KEY:-}
+      OPS_CONSUMER_SECRET: ${OPS_CONSUMER_SECRET:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    # Also not published — the API is reached through nginx, so there is one way in.
+
+  web:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        # Offered only once there is something behind /api to answer.
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db-data:

@@ -4,35 +4,9 @@ import { fundingService, authService, extractErrorMessage } from '../services/ap
 import Loading from '../components/Loading'
 import EmptyState from '../components/EmptyState'
 import { PageHeader } from '../components/ui'
-
-const SOURCE_LABELS = {
-  government_grant: 'Government Grant',
-  research_council: 'Research Council',
-  innovation_fund: 'Innovation Fund',
-  startup_accelerator: 'Startup Accelerator',
-  venture_program: 'Venture Program',
-  international_agency: 'International Agency',
-}
-
-const fmtAmount = (min, max, cur = 'USD') => {
-  const f = (n) => {
-    const v = Number(n)
-    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(v % 1_000_000 ? 1 : 0)}M`
-    if (v >= 1000) return `${Math.round(v / 1000)}K`
-    return `${v}`
-  }
-  if (min == null && max == null) return null
-  if (min != null && max != null) return `${cur} ${f(min)}–${f(max)}`
-  return `${cur} ${f(min ?? max)}`
-}
-
-// Three states, because "✓ Eligible — set your country to confirm" contradicted
-// itself. An unchecked country requirement is not the same as being eligible.
-const ELIG_UI = {
-  eligible: { cls: 'elig-ok', label: 'Eligible' },
-  unconfirmed: { cls: 'elig-maybe', label: 'Possibly eligible' },
-  ineligible: { cls: 'elig-no', label: 'Not eligible' },
-}
+import { useSession } from '../services/session'
+import { isOwner } from '../roles'
+import { ELIG_UI, SOURCE_LABELS, fmtAmount, fmtDeadline } from '../components/ui/format'
 
 function OpportunityCard({ opp, score, eligibility, matched, reasons }) {
   const amount = fmtAmount(opp.amount_min, opp.amount_max, opp.currency)
@@ -58,7 +32,7 @@ function OpportunityCard({ opp, score, eligibility, matched, reasons }) {
       <div className="opp-tags">
         <span className="src-tag">{SOURCE_LABELS[opp.source_type] || opp.source_type}</span>
         {amount && <span className="meta-tag">{amount}</span>}
-        {opp.deadline && <span className="meta-tag">Deadline {opp.deadline}</span>}
+        {opp.deadline && <span className="meta-tag">{fmtDeadline(opp.deadline)}</span>}
         {opp.countries?.length > 0 && <span className="meta-tag">{opp.countries.join(', ')}</span>}
       </div>
 
@@ -94,6 +68,8 @@ export default function Funding() {
   const [noProfile, setNoProfile] = useState(false)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { role } = useSession()
+  const owner = isOwner(role)
 
   useEffect(() => {
     fundingService.recommendations({ limit: 50, include_live: true })
@@ -140,23 +116,29 @@ export default function Funding() {
   return (
     <div className="dashboard">
       <PageHeader trail="Discover" title="Funding Discovery">
-        Grants ranked against your portfolio, with eligibility checked against your
-        role and country.
+        {owner
+          ? 'Grants ranked against your portfolio, with eligibility checked against '
+            + 'your role and country.'
+          : 'The whole funding catalogue, plus live listings — searchable by title, '
+            + 'agency or keyword.'}
       </PageHeader>
         {error && <div className="error">{error}</div>}
 
-        <div className="tabs">
-          <button className={tab === 'recommended' ? 'tab active' : 'tab'}
-                  onClick={() => setTab('recommended')} disabled={noProfile}>
-            Recommended for you
-          </button>
-          <button className={tab === 'browse' ? 'tab active' : 'tab'}
-                  onClick={() => setTab('browse')}>
-            Browse & search all
-          </button>
-        </div>
+        {owner && (
+          <div className="tabs">
+            <button className={tab === 'recommended' ? 'tab active' : 'tab'}
+                    onClick={() => setTab('recommended')} disabled={noProfile}
+                    title={noProfile ? 'Build your portfolio to get recommendations' : ''}>
+              Recommended for you
+            </button>
+            <button className={tab === 'browse' ? 'tab active' : 'tab'}
+                    onClick={() => setTab('browse')}>
+              Browse & search all
+            </button>
+          </div>
+        )}
 
-        {tab === 'recommended' && (
+        {owner && tab === 'recommended' && (
           <>
             {noProfile ? (
               <div className="card">
@@ -186,10 +168,11 @@ export default function Funding() {
           </>
         )}
 
-        {tab === 'browse' && (
+        {/* Staff have no other tab, so the catalogue is their whole page. */}
+        {(!owner || tab === 'browse') && (
           <>
             <form onSubmit={runSearch} className="search-row">
-              <input placeholder="Search grants by title, agency or keyword..."
+              <input placeholder="Search grants by title, agency or keyword..." maxLength={200}
                      value={query} onChange={(e) => setQuery(e.target.value)} />
               <button type="submit">Search</button>
               {searchResults && (

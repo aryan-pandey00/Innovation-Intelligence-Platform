@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { datasetService, extractErrorMessage } from '../../services/api'
 import { fmtDate } from '../ui/format'
 
-/** Search an external source and import records into the user's portfolio.
- *  Shared by the Portfolio page and the discovery pages. */
 export default function DatasetSearch({ kind, onImport }) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
@@ -11,9 +9,6 @@ export default function DatasetSearch({ kind, onImport }) {
   const [error, setError] = useState('')
   const [importedKeys, setImportedKeys] = useState(new Set())
   const [showResults, setShowResults] = useState(false)
-  // The vendor name stays in the error message, where it says which service is
-  // down, but out of the placeholder: patent import still reads Google while
-  // every analysis page reads EPO, and those are not the same corpus.
   const source = kind === 'publication' ? 'OpenAlex' : 'Google Patents'
   const noun = kind === 'publication' ? 'publications' : 'patents'
 

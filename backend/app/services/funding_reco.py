@@ -45,11 +45,14 @@ def _opportunity_text(opp) -> str:
     ]).strip()
 
 
-# Three states: a country-restricted grant for a user with no country set is
-# neither eligible nor ruled out, and calling it eligible inflated the dashboard.
 ELIGIBLE = "eligible"
 UNCONFIRMED = "unconfirmed"
 INELIGIBLE = "ineligible"
+
+
+def recommendation_order(row: dict) -> tuple:
+    """Sort key for the order a person is shown their matches in."""
+    return (not row["eligible"], -row["relevance_score"])
 
 
 def check_eligibility(opp, user_role: str, user_country: str | None,
@@ -129,7 +132,6 @@ def score_live_for_profile(profile, publications, user_country, live_opps) -> li
             "opportunity": opp,
             "relevance_score": relevance,
             "eligibility": status,
-            # kept for ordering and back-compatibility: "not ruled out"
             "eligible": status != INELIGIBLE,
             "matched_terms": matched,
             "reasons": reasons,
@@ -166,14 +168,7 @@ def rank_by_query(query: str, opportunities) -> list[dict]:
 
 def rank_opportunities(profile, publications, user_role, user_country,
                        opportunities, today=None, focus: str | None = None) -> list[dict]:
-    """`focus` narrows the ranking to one technology without dropping the profile.
-
-    The innovation assessment needs both: which grants suit *this technology* and
-    whether *this user* can apply. Ranking by the bare term threw away role and
-    country; ranking by the profile alone ignored the term, so every technology
-    scored the same. A term already in the profile is a no-op here, which is what
-    keeps one grant reporting one percentage across the app.
-    """
+    """`focus` narrows the ranking to one technology without dropping the profile."""
     if today is None:
         today = date.today()
     if not opportunities:
@@ -213,7 +208,6 @@ def rank_opportunities(profile, publications, user_role, user_country,
             "opportunity": opp,
             "relevance_score": relevance,
             "eligibility": status,
-            # kept for ordering and back-compatibility: "not ruled out"
             "eligible": status != INELIGIBLE,
             "matched_terms": matched,
             "reasons": reasons,

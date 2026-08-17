@@ -1,28 +1,42 @@
 import { Link } from 'react-router-dom'
-import { CARD_MODULES } from './modules'
 
-/**
- * The five tool cards, shared by the dashboard and the public landing page so
- * both name the same tools the same way.
- *
- * `linked` is false on the landing page: those routes require an account.
- */
-export default function ToolCards({ linked = true }) {
+import { CARD_MODULES, GROUP_ORDER, canOpen } from './modules'
+import { useSession } from '../services/session'
+
+export default function ToolCards() {
+  const { role } = useSession()
+
+  const visible = CARD_MODULES.filter((m) => role && canOpen(role, m.to))
+
+  const bands = GROUP_ORDER
+    .map((label) => ({ label, cards: visible.filter((m) => m.group === label) }))
+    .filter((band) => band.cards.length > 0)
+
   return (
-    <div className="module-cards">
-      {CARD_MODULES.map(({ key, to, name, blurb, Icon }) => {
-        const body = (
-          <>
-            <span className="mc-icon" aria-hidden="true"><Icon size={20} /></span>
-            <span className="mc-title">{name}</span>
-            <span className="mc-desc">{blurb}</span>
-            {linked && <span className="mc-go" aria-hidden="true">→</span>}
-          </>
-        )
-        return linked
-          ? <Link key={key} to={to} className="module-card">{body}</Link>
-          : <article key={key} className="module-card">{body}</article>
-      })}
+    <div className="tool-bands">
+      {bands.map(({ label, cards }) => (
+        <section className="tool-band" key={label}>
+          <h3 className="tool-band-label">{label}</h3>
+          <div className="module-cards">
+            {cards.map(({ key, to, name, blurb, Icon }) => {
+              const body = (
+                <>
+                  <span className="mc-head">
+                    <span className="mc-icon" aria-hidden="true"><Icon size={20} /></span>
+                    <span className="mc-title">{name}</span>
+                    <span className="mc-go" aria-hidden="true">→</span>
+                  </span>
+                  <span className="mc-desc">{blurb}</span>
+                </>
+              )
+              return (
+                <Link key={key} to={to}
+                      className={`module-card band-${label.toLowerCase()}`}>{body}</Link>
+              )
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }

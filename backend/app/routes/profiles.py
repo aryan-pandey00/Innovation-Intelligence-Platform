@@ -32,9 +32,12 @@ def get_my_profile(current_user: User = Depends(get_current_user),
 
 @router.post("/me", response_model=ResearchProfileResponse,
              status_code=status.HTTP_201_CREATED)
+
 def create_my_profile(data: ResearchProfileCreate,
-                      current_user: User = Depends(get_current_user),
+                      current_user: User = Depends(require_role(
+                          UserRole.RESEARCHER, UserRole.STARTUP_FOUNDER)),
                       db: Session = Depends(get_db)):
+    """Only the roles that own a portfolio may create one."""
     existing = db.query(ResearchProfile).filter(
         ResearchProfile.user_id == current_user.id).first()
     if existing:
@@ -61,14 +64,6 @@ def update_my_profile(data: ResearchProfileUpdate,
     return profile
 
 
-@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
-def delete_my_profile(current_user: User = Depends(get_current_user),
-                      db: Session = Depends(get_db)):
-    profile = _get_owned_profile(db, current_user)
-    db.delete(profile)
-    db.commit()
-
-
 @router.get("/{user_id}", response_model=ResearchProfileResponse)
 def get_profile_by_user(user_id: int,
                         _mgr: User = Depends(require_role(
@@ -90,6 +85,7 @@ def list_publications(current_user: User = Depends(get_current_user),
 
 @router.post("/me/publications", response_model=PublicationResponse,
              status_code=status.HTTP_201_CREATED)
+
 def add_publication(data: PublicationCreate,
                     current_user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)):
@@ -139,6 +135,7 @@ def list_patents(current_user: User = Depends(get_current_user),
 
 @router.post("/me/patents", response_model=PatentResponse,
              status_code=status.HTTP_201_CREATED)
+
 def add_patent(data: PatentCreate,
                current_user: User = Depends(get_current_user),
                db: Session = Depends(get_db)):

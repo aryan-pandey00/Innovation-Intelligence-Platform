@@ -1,17 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-/** How many chips stay in the front row before the rest fold behind a toggle. */
 const VISIBLE = 6
 
-/**
- * Order the terms so the front row carries the most specific ones, and say how
- * many are held back.
- *
- * A term that only broadens one already listed is demoted rather than dropped:
- * `renewable` beside `renewable energy` is still analysable, it just does not
- * earn a front-row slot over the more specific version of itself.
- */
 function organise(fields, active) {
   const seen = new Set()
   const unique = []
@@ -32,21 +23,12 @@ function organise(fields, active) {
     ...unique.filter((f) => !broadens(f)),
     ...unique.filter((f) => broadens(f)),
   ]
-  // Whatever is being analysed has to be on screen, or the page shows a result
-  // with no chip marked as its source.
   const pinned = ordered.filter((f) => f === active)
   const rest = ordered.filter((f) => f !== active)
   const all = [...pinned, ...rest]
   return { shown: all.slice(0, VISIBLE), extra: all.slice(VISIBLE) }
 }
 
-/**
- * The profile terms this page can analyse.
- *
- * Each page passes only the fields that answer its own question. Showing all of
- * them everywhere is what let `fusion` reach a patent search, where it matched
- * image fusion and sensor fusion instead.
- */
 export default function FieldChips({ fields, active, onPick, label = 'Your fields', fallback }) {
   const [expanded, setExpanded] = useState(false)
   const { shown, extra } = useMemo(() => organise(fields || [], active), [fields, active])

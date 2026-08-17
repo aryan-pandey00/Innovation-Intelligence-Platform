@@ -1,7 +1,4 @@
-/** Shared value formatting, so no page reinvents an amount or a date. */
 
-/** `USD 150K–1.5M`, or null when there is no amount, so callers can omit the
- *  element rather than render an empty one. */
 export function fmtAmount(min, max, currency = 'USD') {
   const one = (n) => {
     const v = Number(n)
@@ -11,18 +8,16 @@ export function fmtAmount(min, max, currency = 'USD') {
     return `${v}`
   }
   if (min == null && max == null) return null
-  if (min != null && max != null) return `${currency} ${one(min)}–${one(max)}`
+  if (min != null && max != null) {
+    const [lo, hi] = [one(min), one(max)]
+    return lo === hi ? `${currency} ${lo}` : `${currency} ${lo}–${hi}`
+  }
   return `${currency} ${one(min ?? max)}`
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-/**
- * `15 Nov 2026` from an ISO date. Parsed by hand: `new Date(iso)` reads a bare
- * `YYYY-MM-DD` as UTC midnight and prints it local, showing the day before for
- * anyone west of Greenwich.
- */
 export function fmtDate(iso) {
   if (!iso) return null
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso))
@@ -33,7 +28,16 @@ export function fmtDate(iso) {
   return `${Number(dd)} ${month} ${y}`
 }
 
-/** `Closes 15 Nov 2026`, or `Closed 3 Jan 2026` once the date has passed. */
+export function fmtStamp(iso) {
+  const day = fmtDate(iso)
+  if (!day) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return day
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${day}, ${hh}:${mm}`
+}
+
 export function fmtDeadline(iso, today = new Date()) {
   const shown = fmtDate(iso)
   if (!shown) return null
@@ -41,10 +45,6 @@ export function fmtDeadline(iso, today = new Date()) {
   return `${String(iso) < stamp ? 'Closed' : 'Closes'} ${shown}`
 }
 
-/**
- * Three states: a country-restricted grant for someone who has not set a country
- * is neither eligible nor ruled out.
- */
 export const ELIG_UI = {
   eligible: { cls: 'elig-ok', label: 'Eligible' },
   unconfirmed: { cls: 'elig-maybe', label: 'Possibly eligible' },
@@ -53,13 +53,19 @@ export const ELIG_UI = {
 
 export const eligUi = (state) => ELIG_UI[state] || ELIG_UI.unconfirmed
 
-/** Exact figures with separators: 350,252, not 350.3K. Stat cards state real
- *  counts; `compactNumber` in chartTheme stays for axes. */
+export const SOURCE_LABELS = {
+  government_grant: 'Government Grant',
+  research_council: 'Research Council',
+  innovation_fund: 'Innovation Fund',
+  startup_accelerator: 'Startup Accelerator',
+  venture_program: 'Venture Program',
+  international_agency: 'International Agency',
+}
+
 export const fmtCount = (n) => (n == null || !Number.isFinite(Number(n))
   ? '—'
   : Number(n).toLocaleString('en-US'))
 
-/** Whole-number signed percentages: year-on-year counts carry no decimal. */
 export const fmtPct = (n, { sign = false } = {}) => {
   if (n == null || !Number.isFinite(Number(n))) return '—'
   const v = Math.round(Number(n))

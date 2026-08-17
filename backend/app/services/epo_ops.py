@@ -1,13 +1,4 @@
-"""EPO Open Patent Services (OPS) client — real patent counts and year series.
-
-Constraints verified against the live API:
-  * `total-result-count` is NOT capped at 2000; the cap applies only to how many
-    rows may be paged through, and we only read the count.
-  * `pd` (publication date) is the only date index accepted — `ad` is rejected
-    with CLIENT.InvalidIndex. Publication date carries no filing lag anyway.
-  * `X-Throttling-Control` advertises the current rate budget, so pacing is read
-    from it rather than guessed.
-"""
+"""EPO Open Patent Services (OPS) client — real patent counts and year series."""
 import asyncio
 import base64
 import random
@@ -21,20 +12,14 @@ from app.core.config import settings
 
 _AUTH_URL = "https://ops.epo.org/3.2/auth/accesstoken"
 _SEARCH_URL = "https://ops.epo.org/3.2/rest-services/published-data/search"
-# Full bibliographic records; plain search returns only country/number/kind.
 _BIBLIO_URL = _SEARCH_URL + "/biblio"
-# Verified: Range 1901-2000 is served, 2001-2100 is rejected. 100 is the page ceiling.
 _MAX_RANGE = 2000
 _PAGE = 100
 
-# refresh a little before the ~20 minute token lifetime actually ends
 _TOKEN_SAFETY_MARGIN = 60
 
-# `X-Throttling-Control` reports a *momentary* allowance, not a sustainable rate:
-# pacing at the advertised 60/15 = 4s for half an hour earned a RobotDetected
-# block. Floor the gap well below it, and jitter — a metronome is a robot signal.
-_MIN_GAP = 12.0                    # never faster than ~5 searches/minute
-_JITTER = 3.0                      # break up the metronome
+_MIN_GAP = 12.0
+_JITTER = 3.0
 _DEFAULT_SEARCH_QUOTA = 5
 
 _TOTAL_RE = re.compile(r'total-result-count="(\d+)"')
@@ -53,8 +38,8 @@ class OPSUnavailable(RuntimeError):
     def __init__(self, message: str, *, retry_after: float | None = None,
                  blocked: bool = False) -> None:
         super().__init__(message)
-        self.retry_after = retry_after   # seconds OPS asked us to wait, if it said
-        self.blocked = blocked           # closed to us, not merely busy: stop
+        self.retry_after = retry_after
+        self.blocked = blocked
 
 
 def is_configured() -> bool:
@@ -98,11 +83,6 @@ class _TokenCache:
 
 _tokens = _TokenCache()
 
-
-# Field names are not patent vocabulary: `ti,ab="cybersecurity"` finds 24 patents
-# worldwide, because patents say "detecting network intrusion". For these terms the
-# only honest query is the office's own classification, verified in
-# scripts/verify_cpc_map.py before being trusted.
 _TERM_CPC: dict[str, str] = {
     "cybersecurity": "G06F21 or H04L63",
     "cyber security": "G06F21 or H04L63",
@@ -122,7 +102,6 @@ _TERM_CPC: dict[str, str] = {
     "drug discovery": "G16C20 or C40B",
 }
 
-# Below this a count is too small to be a credible field size; the UI says so.
 LOW_CONFIDENCE_TOTAL = 500
 
 
@@ -131,7 +110,7 @@ def cpc_for(term: str) -> str | None:
 
 
 def _cql_cpc(expression: str) -> str:
-    """A CPC expression as CQL, e.g. 'G06F21 or H04L63' -> (cpc=G06F21 or cpc=H04L63)."""
+    """A CPC expression as CQL, e.g."""
     codes = [c.strip() for c in expression.split(" or ") if c.strip()]
     return "(" + " or ".join(f"cpc={c}" for c in codes) + ")"
 
@@ -145,10 +124,7 @@ def base_query(term: str) -> tuple[str, str]:
 
 
 def _cql_phrase(term: str) -> str:
-    """A term as a quoted CQL phrase matched against title and abstract.
-
-    Quotes are stripped rather than escaped: OPS has no escape syntax for them.
-    """
+    """A term as a quoted CQL phrase matched against title and abstract."""
     cleaned = " ".join(term.replace('"', " ").split())
     if not cleaned:
         raise OPSUnavailable("empty search term")
@@ -168,8 +144,7 @@ def _parse_count(resp: httpx.Response) -> int:
 
 
 def _search_quota(resp: httpx.Response) -> int:
-    """Searches-per-minute OPS says we may make right now. The colour matters as
-    much as the number: not-green means slow down, black means stop."""
+    """Searches-per-minute OPS says we may make right now."""
     match = _QUOTA_RE.search(resp.headers.get("X-Throttling-Control", ""))
     if not match:
         return _DEFAULT_SEARCH_QUOTA
@@ -177,7 +152,7 @@ def _search_quota(resp: httpx.Response) -> int:
     if colour == "black" or allowed <= 0:
         return 0
     if colour in ("red", "yellow"):
-        return 1                       # crawl until it recovers
+        return 1
     return max(1, allowed)
 
 
@@ -215,7 +190,6 @@ async def _count(client: httpx.AsyncClient, cql: str) -> tuple[int, int]:
     """Returns (matching patents, searches-per-minute we may currently make)."""
     token = await _tokens.get(client)
     try:
-        # Range 1-1: we want the count, not the rows.
         resp = await client.get(
             _SEARCH_URL,
             params={"q": cql, "Range": "1-1"},
@@ -226,7 +200,6 @@ async def _count(client: httpx.AsyncClient, cql: str) -> tuple[int, int]:
         raise OPSUnavailable(f"OPS request failed: {exc}") from exc
 
     if resp.status_code == 404:
-        # "no matches" comes back as an EntityNotFound fault, not a zero count
         return 0, _search_quota(resp)
     if resp.status_code in (403, 429, 503):
         raise _refusal(resp)
@@ -254,11 +227,7 @@ def _text(node) -> str | None:
 
 
 def _applicants(biblio: dict) -> list[str]:
-    """Applicant names, preferring EPO's standardised ('epodoc') spelling.
-
-    OPS repeats each applicant once per naming format, so counting both would
-    double-count every organisation. Legal names also vary in punctuation.
-    """
+    """Applicant names, preferring EPO's standardised ('epodoc') spelling."""
     parties = biblio.get("parties") or {}
     entries = _as_list((parties.get("applicants") or {}).get("applicant"))
 
@@ -275,17 +244,11 @@ def _applicants(biblio: dict) -> list[str]:
             fallback.append(name)
 
     chosen = preferred or fallback
-    # keep first-seen order while removing repeats
     return list(dict.fromkeys(chosen))
 
 
 def _classifications(biblio: dict) -> list[str]:
-    """IPC codes normalised to subclass level (e.g. 'H01M').
-
-    OPS returns fixed-width strings like 'H01M  10/42        20060101'. Subclass
-    is the useful granularity: the full code is too specific to group by, the
-    section letter too coarse.
-    """
+    """IPC codes normalised to subclass level (e.g."""
     node = biblio.get("classifications-ipcr") or {}
     codes: list[str] = []
     for entry in _as_list(node.get("classification-ipcr")):
@@ -313,8 +276,6 @@ def _record(document: dict) -> dict | None:
         if title:
             break
 
-    # DE and FR abstracts arrive through the same field, and mixing them into the
-    # clustering corpus produced a cluster labelled "Der, Eine, Die".
     abstract_parts = []
     for abstract in _as_list(document.get("abstract")):
         if not isinstance(abstract, dict):
@@ -346,7 +307,6 @@ def _record(document: dict) -> dict | None:
         "assignee": names[0] if names else None,
         "all_assignees": names,
         "patent_number": publication_number,
-        # publication, not filing: filing date is unavailable from this service
         "publication_date": f"{date[:4]}-{date[4:6]}-{date[6:8]}" if date and len(date) >= 8 else None,
         "classification": codes[0] if codes else None,
         "classifications": codes,
@@ -358,8 +318,7 @@ def _record(document: dict) -> dict | None:
 
 
 def year_window(span: int = 12) -> list[int]:
-    """Years to chart: the same window the research series uses, ending at the
-    last complete year so a part-finished year cannot look like a downturn."""
+    """Years to chart: the same window the research series uses."""
     current = date.today().year
     return list(range(current - span + 1, current))
 
@@ -404,12 +363,7 @@ async def _biblio_page(client: httpx.AsyncClient, cql: str,
 
 async def sample_records(term: str, by_year: list[dict],
                          per_year: int = 40) -> dict:
-    """A date-balanced sample of real records for a term.
-
-    `per_year` from each year rather than the first N overall: a single
-    relevance-ranked page skews heavily recent, which made the assignee rankings
-    meaningless. Sampling per year gives every year equal voice.
-    """
+    """A date-balanced sample of real records for a term."""
     if not is_configured():
         raise OPSUnavailable("OPS credentials are not configured")
 
@@ -444,9 +398,6 @@ async def sample_records(term: str, by_year: list[dict],
     }
 
 
-# The applicant index holds EPO's own epodoc names, so length is the only real
-# guard. A two-token minimum used to sit here and rejected "IBM", which holds
-# 10,231 patents in G06F21/H04L63 and led cybersecurity by a wide margin.
 _MIN_APPLICANT_CHARS = 3
 _COUNTRY_TAG = re.compile(r"\s*\[[A-Z]{2}\]\s*$")
 
@@ -460,16 +411,7 @@ async def applicant_counts(term: str, names: list[tuple[str, str]],
                            ceiling: int | None = None,
                            counts: dict[str, int] | None = None,
                            done: set[str] | None = None) -> dict[str, int]:
-    """True field counts for `(display, raw)` applicants, keyed by display name.
-
-    Queried by EPO's name and labelled with ours: `split_assignee` expands
-    abbreviations for the screen, and that invented string is not in the applicant
-    index — `AMAZON TECH INC` counts 2,380 where `Amazon Technology Inc.` counts 5.
-
-    `counts` and `done` are owned by the caller so a refusal partway through keeps
-    the names already paid for. `done` records every name asked about, answer usable
-    or not, or a resumed run re-asks them forever.
-    """
+    """True field counts for `(display, raw)` applicants, keyed by display name."""
     if not is_configured():
         raise OPSUnavailable("OPS credentials are not configured")
 
@@ -485,19 +427,13 @@ async def applicant_counts(term: str, names: list[tuple[str, str]],
             await asyncio.sleep(_pace(quota))
             count, quota = await _count(client, f'{base} and pa="{safe}"')
             done.add(display)
-            # The query is `base and pa=…`, so it cannot legitimately outrun the
-            # field. Anything larger escaped, and is dropped rather than shown.
             if ceiling is None or count <= ceiling:
                 counts[display] = count
     return counts
 
 
 async def publication_counts(term: str, span: int = 12) -> dict:
-    """Corpus total plus a real publications-per-year series for `term`.
-
-    One paced request per year plus one for the total — far too slow for a web
-    request, so callers must cache this.
-    """
+    """Corpus total plus a real publications-per-year series for `term`."""
     if not is_configured():
         raise OPSUnavailable("OPS credentials are not configured")
 
@@ -522,7 +458,6 @@ async def publication_counts(term: str, span: int = 12) -> dict:
         "cql": base,
         "query_basis": basis,
         "total": total,
-        # a phrase match on a field name undercounts badly — flag, don't hide
         "low_confidence": basis == "phrase" and total < LOW_CONFIDENCE_TOTAL,
         "by_year": by_year,
         "date_basis": "publication",

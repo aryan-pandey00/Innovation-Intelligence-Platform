@@ -1,0 +1,124 @@
+name: CI
+
+# Runs on every push and pull request. Three jobs in parallel, because they fail for
+# unrelated reasons and finding out about all three at once is the point.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  # So the suite can be run against the current state of a branch without a push.
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # A real PostgreSQL: list columns are JSONB and de-duplication is an
+        # `INSERT ... ON CONFLICT`, so SQLite would test code the deployment never runs.
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: innovation_platform
+        ports:
+          - 5432:5432
+        # Without this the job starts querying a port that is listening but not yet
+        # serving, and fails on the first connection roughly one run in three.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      # The suite derives its own database by appending `_test`, and refuses to run if
+      # that would be the same name as this one.
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/innovation_platform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Matches the version in backend/Dockerfile, so a dependency that resolves
+          # here resolves in the image.
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Check every module imports
+        working-directory: backend
+        # Cheap gate ahead of the suite: a syntax error in a module no test touches
+        # would otherwise only surface at runtime.
+        run: python -m compileall -q app scripts
+
+      - name: Run tests
+        working-directory: backend
+        run: pytest -v
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        # `npm ci` rather than install: it fails if the lockfile and package.json
+        # disagree, which is the failure the image would otherwise hit first.
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        # There is no separate typecheck or lint step to add here: the build is the
+        # gate, and Vite fails it on an unresolved import or a syntax error.
+        run: npm run build
+
+  images:
+    name: Container images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Built, not pushed: a broken Dockerfile is otherwise found at deploy time,
+      # which is the worst moment to find it.
+      - name: Build the API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build the web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Check the compose file
+        # Interpolation errors and schema mistakes are found here rather than by
+        # someone running `up` for the first time.
+        env:
+          POSTGRES_PASSWORD: ci-validation-only
+          SECRET_KEY: ci-validation-only-not-a-real-signing-key-000000
+        run: docker compose config -q

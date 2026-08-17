@@ -1,7 +1,5 @@
-/** Shared page primitives, so headers, cards and stat tiles are styled once. */
 import { useId, useState } from 'react'
 
-/** Page title, optional breadcrumb trail and a one-line description. */
 export function PageHeader({ trail, title, children }) {
   return (
     <header className="page-head">
@@ -12,7 +10,6 @@ export function PageHeader({ trail, title, children }) {
   )
 }
 
-/** A titled section. `aside` sits opposite the title for links or actions. */
 export function Card({ title, sub, aside, className = '', children }) {
   return (
     <section className={`card ${className}`.trim()}>
@@ -30,8 +27,6 @@ export function Card({ title, sub, aside, className = '', children }) {
   )
 }
 
-/** A headline number. `note` qualifies it: what was counted, or how much of a
- *  corpus was sampled. */
 export function StatCard({ value, label, note, tone, hint }) {
   return (
     <div className="stat-card">
@@ -49,10 +44,6 @@ export function StatGrid({ children }) {
   return <div className="stat-grid">{children}</div>
 }
 
-/**
- * A small ⓘ revealing a qualifier on hover or focus. Accuracy caveats have to
- * stay — they stop a sampled ranking being read as fact — but not inline.
- */
 export function InfoHint({ children, label = 'More about this figure' }) {
   const [open, setOpen] = useState(false)
   const id = useId()
@@ -77,22 +68,10 @@ export function InfoHint({ children, label = 'More about this figure' }) {
   )
 }
 
-/**
- * Ranked list with an inline magnitude bar, for the 5-10 item rankings a bar
- * chart oversells.
- *
- * `bars={false}` where values are near-identical: 6,6,5,5,5,5,4,4 draws as
- * 100/100/83/83/83/83/67/67, encoding nothing while implying precision.
- * `shareKey` gives each bar an absolute meaning rather than one relative to the
- * leading row.
- */
 export function RankedList({ items, valueKey = 'count', labelKey = 'topic',
                              shareKey, bars = true, format }) {
   const max = Math.max(1, ...items.map((i) => Number(i[valueKey]) || 0))
   const text = (v) => (format ? format(v) : v.toLocaleString('en-US'))
-  /* Every <li> is its own grid, so an `auto` value column is sized by that row's
-     own number and slides the fixed-width bar sideways — up to 25px of drift on
-     a list running 12,405 down to 97. One width for the whole list instead. */
   const valueWidth = Math.max(1, ...items.map(
     (i) => text(Number(i[valueKey]) || 0).length))
   return (
@@ -112,8 +91,6 @@ export function RankedList({ items, valueKey = 'count', labelKey = 'topic',
               </span>
             )}
             <span className="ranked-value">{text(value)}</span>
-            {/* A holder of 23 patents in a 502,434-patent field rounds to 0.0%,
-                which reads as "holds none" rather than "holds very few". */}
             {share != null && (
               <span className="ranked-share">
                 {share === 0 && value > 0 ? '<0.01%' : `${share}%`}

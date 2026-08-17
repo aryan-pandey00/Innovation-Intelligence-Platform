@@ -4,8 +4,8 @@ import { commercializationService, authService, extractErrorMessage } from '../s
 import Loading from '../components/Loading'
 import FieldChips from '../components/FieldChips'
 import CommercializationView from '../components/CommercializationView'
+import NextRow from '../components/NextRow'
 import { PageHeader, Card } from '../components/ui'
-import { byKey } from '../components/modules'
 
 export default function Commercialization() {
   const [query, setQuery] = useState('')
@@ -22,9 +22,6 @@ export default function Commercialization() {
       })
       .catch((err) => {
         if (err.response?.status === 401) { authService.logout(); navigate('/login') }
-        // Anything else has to be shown. Without this the page fell through to its
-        // "search above" empty card, so a rate-limited data source looked exactly
-        // like an empty profile.
         else setError(extractErrorMessage(err, 'Could not load commercialization recommendations'))
       })
       .finally(() => setLoading(false))
@@ -45,9 +42,6 @@ export default function Commercialization() {
     }
   }
 
-  const Innovation = byKey.innovation.Icon
-  const Funding = byKey.funding.Icon
-
   return (
     <div className="dashboard">
       <PageHeader trail="Act" title="Commercialization">
@@ -56,7 +50,7 @@ export default function Commercialization() {
       </PageHeader>
 
       <form onSubmit={analyze} className="search-row">
-        <input placeholder="Plan a technology, e.g. solid-state battery"
+        <input placeholder="Plan a technology, e.g. solid-state battery" maxLength={200}
                aria-label="Technology to plan"
                value={query} onChange={(e) => setQuery(e.target.value)} />
         <button type="submit">Analyse</button>
@@ -84,22 +78,17 @@ export default function Commercialization() {
           <CommercializationView pathway={data.pathway}
                                  recommendations={data.recommendations} />
 
-          {/* The advice comes out of the innovation score, so the page says so
-              and links to it rather than leaving the reader to wonder what a
-              "Growing" field or a 59 was measured from. */}
-          <div className="next-row">
-            <Link to="/innovation" className="next-card">
-              <Innovation size={18} />
-              <span>
-                <strong>Where this comes from</strong>
-                Innovation score {data.innovation_score} · {data.stage}
-              </span>
-            </Link>
-            <Link to="/funding" className="next-card">
-              <Funding size={18} />
-              <span><strong>Fund the next stage</strong>Grants matched to your profile</span>
-            </Link>
-          </div>
+          <NextRow
+            exclude={(data.recommendations || []).map((r) => r.link?.to)}
+            items={[
+              { key: 'innovation', title: 'Where this comes from',
+                note: `Innovation score ${data.innovation_score} · ${data.stage}` },
+              { key: 'funding', title: 'Fund the next stage',
+                note: 'Grants matched to your profile' },
+              { key: 'reports', title: 'Save this as a report',
+                note: 'This route to market, as a PDF or a spreadsheet' },
+            ]}
+          />
         </>
       )}
     </div>

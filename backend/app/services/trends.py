@@ -9,31 +9,18 @@ _RETRIES = 2
 
 
 def _topic_filter(query: str) -> str:
-    """An OpenAlex filter matching the query as a phrase in title or abstract.
-
-    Not `search=`: that is a loose match across full text too, so "energy
-    storage" returned 2.5M works led by "Global cancer statistics". This gives
-    350,252, and it mirrors the EPO query so both sides count comparable things.
-    """
+    """An OpenAlex filter matching the query as a phrase in title or abstract."""
     cleaned = " ".join((query or "").replace('"', " ").split())
     return f'title_and_abstract.search:"{cleaned}"'
 
 
 def _with_filter(query: str, *extra: str) -> str:
-    """Combine the topic filter with any additional filters.
-
-    OpenAlex takes them comma-separated in one `filter` parameter; a second
-    `filter` key would silently replace the topic and widen the query.
-    """
+    """Combine the topic filter with any additional filters."""
     return ",".join([_topic_filter(query), *[e for e in extra if e]])
 
 
 class ResearchQuotaExceeded(Exception):
-    """OpenAlex refused the call because the day's request budget is spent.
-
-    Not a transient failure: `retryAfter` counts seconds to midnight UTC, so a
-    retry cannot help and the user needs to be told when it comes back.
-    """
+    """OpenAlex refused the call because the day's request budget is spent."""
 
     def __init__(self, retry_after: int | None = None):
         self.retry_after = retry_after
@@ -41,8 +28,7 @@ class ResearchQuotaExceeded(Exception):
 
 
 def quota_detail(exc: ResearchQuotaExceeded) -> str:
-    """User-facing text for a spent daily budget: whose limit it is, and when it
-    clears. "Data source unavailable" reads as someone else's fault."""
+    """User-facing text for a spent daily budget: whose limit it is, and when it clears."""
     hours = round((exc.retry_after or 0) / 3600)
     when = f"in about {hours} hour{'s' if hours != 1 else ''}" if hours >= 1 else "shortly"
     return ("The research data source has reached its daily request limit. "
@@ -69,8 +55,6 @@ async def _get(client: httpx.AsyncClient, params: dict) -> dict:
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPError as exc:
-            # a spent daily budget does not recover in 4.5s; retrying just burns
-            # two more calls against the cap
             quota = _quota_error(exc)
             if quota is not None:
                 raise quota from exc
@@ -100,19 +84,14 @@ technologies technology the their
 
 
 def _topic_key(name: str) -> str:
-    """A comparison key that treats restatements of one topic as the same topic.
-
-    Four of ten hotspots were once the same subject under different spellings.
-    Lowercase, drop filler words, sort the remainder.
-    """
+    """A comparison key that treats restatements of one topic as the same topic."""
     words = sorted(w for w in re.split(r"[^a-z0-9]+", (name or "").lower())
                    if w and w not in _TOPIC_NOISE)
     return " ".join(words)
 
 
 def merge_topics(rows: list[dict], limit: int | None = None) -> list[dict]:
-    """Sum counts across restatements of the same topic, keeping the longest
-    name as the label (it is usually the most descriptive)."""
+    """Sum counts across restatements of the same topic."""
     merged: dict[str, dict] = {}
     for row in rows:
         name = row.get("topic") or row.get("key_display_name") or ""
@@ -133,18 +112,9 @@ def merge_topics(rows: list[dict], limit: int | None = None) -> list[dict]:
 
 def _emerging(earlier_topics: list[dict], recent_topics: list[dict],
               total_earlier: int, total_recent: int, limit: int = 6) -> list[dict]:
-    """Topics whose share of publications has risen between two windows.
-
-    The windows must not overlap: an all-time baseline contains the recent window
-    and damps every change toward zero.
-
-    A share is the topic count over the *work* count — the fraction of
-    publications touching the topic. Not over the sum of topic counts: OpenAlex
-    assigns ~2 topics per work, so that would silently measure something else.
-    """
+    """Topics whose share of publications has risen between two windows."""
     if not total_earlier or not total_recent:
         return []
-    # merge first, or one topic split across three spellings reads as three risers
     baseline = {_topic_key(t["topic"]): t["count"] / total_earlier
                 for t in merge_topics([{"topic": t["key_display_name"],
                                         "count": t["count"]} for t in earlier_topics])}
@@ -157,7 +127,6 @@ def _emerging(earlier_topics: list[dict], recent_topics: list[dict],
         if growth > 0:
             out.append({
                 "topic": t["topic"],
-                # both ends: "3.1% → 6.3%" reads as a doubling where "+3.2%" does not
                 "earlier_share": round(earlier_share * 100, 1),
                 "recent_share": round(recent_share * 100, 1),
                 "growth": round(growth * 100, 1),
@@ -176,8 +145,7 @@ async def get_research_signal(query: str) -> dict:
     }
 
 
-# Two non-overlapping windows: the last three years against the seven before them.
-_RECENT_YEARS = 2          # current year minus this starts the recent window
+_RECENT_YEARS = 2
 _EARLIER_START = 11
 _EARLIER_END = 5
 
@@ -210,7 +178,6 @@ async def get_trends(query: str, topic_limit: int = 10, paper_limit: int = 5) ->
                 for t in all_topics["group_by"]]
     merged = merge_topics(all_rows)
     hotspots = merged[:topic_limit]
-    # share of publications, so the bar means something absolute
     for row in hotspots:
         row["share"] = (round(100 * row["count"] / total_works, 1)
                         if total_works else None)
@@ -235,9 +202,6 @@ async def get_trends(query: str, topic_limit: int = 10, paper_limit: int = 5) ->
         "works_by_year": _year_window(by_year["group_by"]),
         "hotspots": hotspots,
         "topics_shown": len(hotspots),
-        # `topics_total` was removed, not relabelled: OpenAlex caps `group_by` at
-        # 200 rows and does not paginate, so it read 197-198 for every query. This
-        # replaces it — how much of the literature arrived in the recent window.
         "recent_works": total_recent,
         "recent_share": (round(100 * total_recent / total_works)
                          if total_works else None),

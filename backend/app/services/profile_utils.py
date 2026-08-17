@@ -1,22 +1,6 @@
-"""Which profile fields answer which question.
-
-Patent databases index technology; academic databases index disciplines. The
-three field types are not interchangeable — using profile terms as patent
-queries returned `fusion` -> 20,762 patents and `resources` -> 10,002.
-
-  research_terms    -> Trends (OpenAlex: disciplines and subjects)
-  technology_terms  -> Patents, Technology, Innovation, Commercialisation
-  all_terms         -> Funding, a deliberately broad relevance match
-
-`publications_for` / `patents_for` answer a different question: which of the
-user's own records are about the technology being assessed. Work in one field is
-not evidence of a position in another.
-"""
+"""Which profile fields answer which question."""
 import re
 
-# Words that must never be the reason a record matches. Nearly every patent title
-# contains "system", "method" or "device", which would match everything to
-# everything — the failure this filter exists to stop, by another door.
 _MATCH_STOPWORDS = {
     "and", "the", "for", "of", "in", "to", "a", "an", "with", "from", "by", "on",
     "its", "use", "using", "used", "based", "new", "novel", "improved", "kind",
@@ -28,8 +12,7 @@ _MATCH_STOPWORDS = {
 
 
 def _stem(word: str) -> str:
-    """Enough to make batteries/battery the same word. The length guards keep
-    `gas` from becoming `ga`."""
+    """Enough to make batteries/battery the same word."""
     if len(word) > 4 and word.endswith("ies"):
         return word[:-3] + "y"
     if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
@@ -47,12 +30,7 @@ def _significant_words(*texts: str | None) -> set[str]:
 
 
 def matches_topic(query: str, *texts: str | None) -> bool:
-    """One shared meaningful word is enough.
-
-    Requiring every word would read "Energy Storage" against "The irreversible
-    momentum of clean energy" as no match. The looser rule errs by under-crediting
-    an unusual title rather than crediting a paper to an unrelated field.
-    """
+    """One shared meaningful word is enough."""
     qwords = _significant_words(query)
     if not qwords:
         return False
@@ -91,11 +69,7 @@ def research_terms(profile) -> list[str]:
 
 
 def technology_terms(profile) -> tuple[list[str], bool]:
-    """Applied technologies, plus whether this is a fallback.
-
-    Research domains stand in for a user with no technology areas, but the caller
-    must be able to say so: a discipline is a weaker patent query.
-    """
+    """Applied technologies, plus whether this is a fallback."""
     if profile is None:
         return [], False
     areas = _dedupe(profile.technology_areas or [])

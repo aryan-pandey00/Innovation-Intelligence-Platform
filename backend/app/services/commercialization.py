@@ -1,40 +1,91 @@
-"""Commercialisation recommendations.
+"""Commercialisation recommendations."""
+RESEARCHER = "researcher"
+FOUNDER = "startup_founder"
 
-Each card is split into `stat` / `facts` / `items` / `reading` / `action` so the
-frontend can render the registers separately. Only "Do next" cards carry an
-`action`.
 
-`publications` and `patents` arrive already filtered to this technology, so no
-string here may describe them as the whole portfolio — the unfiltered totals come
-in via `signals` to tell "none about this" from "none at all".
-"""
-# No figures: the hero renders a signal strip with the same percentages directly
-# beneath, so quoting them here printed them twice.
+def _voice(user_role: str | None) -> str:
+    """Which of the two owner roles is reading."""
+    return FOUNDER if user_role == FOUNDER else RESEARCHER
+
+
 _PATHWAYS = {
     "Emerging": {
-        "title": "Startup / Spin-out",
-        "detail": "The IP position is still open, and filing early gives you room "
-                  "that a crowded field would not.",
+        RESEARCHER: {
+            "title": "Spin-out, once it is protected",
+            "detail": "The IP position is still open, and filing early gives you "
+                      "room that a crowded field would not. Your institution most "
+                      "likely owns what you file, so disclose before you publish.",
+        },
+        FOUNDER: {
+            "title": "File early, then raise",
+            "detail": "The IP position is still open, and filing early gives you "
+                      "room that a crowded field would not. A filing of your own "
+                      "is also what makes the next round defensible.",
+        },
     },
     "Growing": {
-        "title": "Industry Partnership",
-        "detail": "Capable partners already exist, and the technology is past "
-                  "proving itself.",
+        RESEARCHER: {
+            "title": "Industry partnership",
+            "detail": "Capable partners already exist, and the technology is past "
+                      "proving itself. Sponsored or joint work reaches a market "
+                      "you would otherwise have to build.",
+        },
+        FOUNDER: {
+            "title": "Pilot with an incumbent",
+            "detail": "Capable partners already exist, and the technology is past "
+                      "proving itself. A paid pilot proves demand faster and more "
+                      "cheaply than raising against a forecast.",
+        },
     },
     "Mature": {
-        "title": "Licensing",
-        "detail": "The incumbents hold the ground, so licensing moves faster than "
-                  "building.",
+        RESEARCHER: {
+            "title": "Licence out",
+            "detail": "The incumbents hold the ground, so licensing to one of them "
+                      "moves faster than competing with them.",
+        },
+        FOUNDER: {
+            "title": "Licence in, or find the gap",
+            "detail": "The incumbents hold the ground, so a frontal build is "
+                      "expensive. Licensing in, or serving a segment they ignore, "
+                      "is the cheaper way in.",
+        },
     },
     "Developing": {
-        "title": "Validate First",
-        "detail": "Too little patent data could be matched to this technology, so "
-                  "the IP risk is unmeasured. Confirm what exists before "
-                  "committing to a route.",
+        RESEARCHER: {
+            "title": "Validate first",
+            "detail": "Too little patent data could be matched to this technology, "
+                      "so the IP risk is unmeasured. Confirm what exists before a "
+                      "grant application commits you to it.",
+        },
+        FOUNDER: {
+            "title": "Validate first",
+            "detail": "Too little patent data could be matched to this technology, "
+                      "so the IP risk is unmeasured. Confirm what exists before you "
+                      "commit runway to it.",
+        },
     },
 }
 
-# "Do next" carries a deadline or a risk; "Worth knowing" is context.
+_VOICE = {
+    RESEARCHER: {
+        "artefact_action": "Build a prototype, not another paper",
+        "off_field_action": "Publish here, or import work we have missed",
+        "no_work_reading": "Peer-reviewed results are what make a licensee or "
+                           "investor take a technology seriously.",
+        "protect_action": "Ask your technology transfer office what is still "
+                          "protectable",
+    },
+    FOUNDER: {
+        "artefact_action": "Put it in front of a pilot customer",
+        "off_field_action": "Show results in this field, or import work we have "
+                            "missed",
+        "no_work_reading": "Evidence in the field you are selling into is what "
+                           "makes an investor or licensee take a claim seriously.",
+        "protect_action": "Ask a patent attorney what is still protectable before "
+                          "the next public demo",
+    },
+}
+
 NOW = "now"
 CONTEXT = "context"
 
@@ -64,7 +115,10 @@ def _pct(n) -> str:
 
 
 def recommend(score: dict, funding_recs: list[dict],
-              publications=None, patents=None) -> dict:
+              publications=None, patents=None,
+              user_role: str | None = None) -> dict:
+    voice = _voice(user_role)
+    v = _VOICE[voice]
     signals = score["signals"]
     stage = signals["stage"]
     assignees = signals.get("top_assignees") or []
@@ -78,7 +132,6 @@ def recommend(score: dict, funding_recs: list[dict],
     n_patents = len(patents or [])
     top_citations = max((p.citation_count or 0 for p in (publications or [])), default=0)
 
-    # the whole portfolio; the counts above are the subset matching this technology
     held_pubs = signals.get("portfolio_publications", n_pubs)
     held_patents = signals.get("portfolio_patents", n_patents)
 
@@ -86,11 +139,13 @@ def recommend(score: dict, funding_recs: list[dict],
                      if c["key"] == "technology_maturity"), 50)
 
     research_growth = signals.get("research_growth")
-    template = _PATHWAYS.get(stage, _PATHWAYS["Developing"])
+
+    momentum_card = history_reliable and bool(patent_growth)
+
+    template = _PATHWAYS.get(stage, _PATHWAYS["Developing"])[voice]
     pathway = {
         "title": template["title"],
         "detail": template["detail"],
-        # the readings that chose this pathway
         "signals": [
             {"label": "Lifecycle stage", "value": stage},
             {"label": "Research growth", "value": _pct(research_growth)},
@@ -106,16 +161,16 @@ def recommend(score: dict, funding_recs: list[dict],
                 "items": items or [], "reading": reading, "action": action,
                 "priority": priority, "link": link, "deadline": deadline}
 
-    # productisation, read from the user's record in this technology
     if maturity >= 75:
         recommendations.append(card(
             "Ready for product development",
             {"value": _fmt(patent_total), "label": "patents already cover this area"},
             "The science is settled enough that you compete on execution.",
-            facts=[f"busiest year was {busiest}"] if busiest else None,
+            facts=([f"busiest year was {busiest}"]
+                   if busiest and not momentum_card else None),
             action="Prioritise a prototype and a pilot deployment",
             priority=NOW,
-            link=None,  # this one is work to do, not a page to visit
+            link=None,
         ))
     elif n_pubs > 0:
         facts = []
@@ -129,20 +184,18 @@ def recommend(score: dict, funding_recs: list[dict],
              "label": f"publication{'' if n_pubs == 1 else 's'} on this technology"},
             "The evidence exists. What is missing is something you can demonstrate.",
             facts=facts,
-            action="Build a prototype, not another paper",
+            action=v["artefact_action"],
             priority=NOW,
-            # not "Add your publications": that contradicts the action above
             link={"to": "/portfolio", "label": "Review your portfolio"},
         ))
     elif held_pubs > 0:
-        # portfolio is not empty, just not about this technology
         recommendations.append(card(
             "No published work in this field yet",
             {"value": "0", "label": "of your publications cover this technology"},
             f"Your {held_pubs} publication{'' if held_pubs == 1 else 's'} "
             f"cover{'s' if held_pubs == 1 else ''} other fields. A licensee or "
             f"investor will want results in this one.",
-            action="Publish here, or import work we have missed",
+            action=v["off_field_action"],
             priority=NOW,
             link={"to": "/portfolio", "label": "Check your portfolio"},
         ))
@@ -150,21 +203,19 @@ def recommend(score: dict, funding_recs: list[dict],
         recommendations.append(card(
             "No publications on record",
             {"value": "0", "label": "publications in your portfolio"},
-            "Peer-reviewed results are what make a licensee or investor take a "
-            "technology seriously.",
+            v["no_work_reading"],
             action="Add or import your existing work",
             priority=NOW,
             link={"to": "/portfolio", "label": "Add your publications"},
         ))
 
-    # the IP gap
     if n_pubs > 0 and n_patents == 0 and patent_total > 0:
         recommendations.append(card(
-            "You publish here, but hold no patents",
+            "Published in this field, but holding no patents",
             {"value": _fmt(patent_total), "label": "patents in this field, none yours"},
             "Publishing before filing can count as prior art against your own "
             "application, and Europe allows no grace period.",
-            action="Ask your technology transfer office what is still protectable",
+            action=v["protect_action"],
             priority=NOW,
             link={"to": "/patents", "label": "See what is already filed"},
         ))
@@ -173,7 +224,7 @@ def recommend(score: dict, funding_recs: list[dict],
         if held_patents > n_patents:
             facts.append(f"{held_patents - n_patents} more cover other fields")
         recommendations.append(card(
-            "You have IP to license out",
+            "IP available to license out",
             {"value": str(n_patents),
              "label": f"patent{'' if n_patents == 1 else 's'} you hold here"},
             "That is a position to license from, not only to license into.",
@@ -183,8 +234,7 @@ def recommend(score: dict, funding_recs: list[dict],
             link={"to": "/portfolio", "label": "Review your patents"},
         ))
 
-    # momentum, only where the year series is trustworthy
-    if history_reliable and patent_growth:
+    if momentum_card:
         rising = patent_growth > 0
         recommendations.append(card(
             f"Patent activity is {'rising' if rising else 'falling'}",
@@ -197,19 +247,14 @@ def recommend(score: dict, funding_recs: list[dict],
             link={"to": "/technology", "label": "See the activity over time"},
         ))
 
-    # partners, rendered as a list rather than a comma run in a sentence
     if assignees:
         named = assignees[:3]
-        # The one definition of the basis, set in patents_analysis._top_assignees.
-        # Re-deriving it here from the top three missed a mixed list twice.
         on_corpus = assignees[0].get("basis") == "corpus"
         if on_corpus:
             held = sum(a["corpus_count"] for a in named)
             stat = {"value": _fmt(held),
                     "label": f"patents held by these three, of {_fmt(patent_total)}"}
         else:
-            # Sample appearances, never a share: a share of the sample moves with
-            # our own sample size. See epo_ops.applicant_counts.
             appearances = sum(a.get("count") or 0 for a in named)
             stat = {"value": _fmt(appearances),
                     "label": f"appearances across the {_fmt(sample_size)} patents read"}
@@ -229,7 +274,6 @@ def recommend(score: dict, funding_recs: list[dict],
         ))
 
     if funding_recs:
-        # highest relevance, not row 0 — the ranking sorts eligible-first
         top = max(funding_recs, key=lambda r: r.get("relevance_score") or 0)
         opp = top["opportunity"]
         pct = round(top.get("relevance_score", 0))
@@ -245,7 +289,6 @@ def recommend(score: dict, funding_recs: list[dict],
             deadline=opp.deadline.isoformat() if opp.deadline else None,
         ))
 
-    # a card with a real date leads "Do next"; otherwise they sit in code order
     recommendations.sort(key=lambda r: (r["priority"] != NOW, r["deadline"] is None))
 
     return {"pathway": pathway, "recommendations": recommendations}

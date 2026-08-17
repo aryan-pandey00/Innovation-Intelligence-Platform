@@ -8,7 +8,6 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// fired when the cached user record changes, so shared UI can refresh in place
 export const USER_UPDATED = 'user-updated'
 
 export const authService = {
@@ -26,11 +25,28 @@ export const authService = {
   getMe: () => api.get('/api/auth/me'),
   updateMe: (data) => api.patch('/api/users/me', data),
   deleteMyAccount: () => api.delete('/api/users/me'),
+
+  changePassword: (currentPassword, newPassword) =>
+    api.post('/api/auth/password', {
+      current_password: currentPassword, new_password: newPassword,
+    }),
+  forgotPassword: (email) => api.post('/api/auth/password/forgot', { email }),
+  submitSecurityAnswers: (email, answers, message) =>
+    api.post('/api/auth/password/answers', { email, answers, message }),
+  appealForReset: (email, message) =>
+    api.post('/api/auth/password/appeal', { email, message }),
+  resetStatus: (claim) =>
+    api.get('/api/auth/password/status', { params: { claim } }),
+  resetPassword: (claim, newPassword) =>
+    api.post('/api/auth/password/reset', { claim, new_password: newPassword }),
+
+  securityQuestions: () => api.get('/api/auth/security-questions'),
+  setSecurityQuestions: (pairs) =>
+    api.put('/api/auth/security-questions', { pairs }),
   logout: () => { localStorage.removeItem('token'); localStorage.removeItem('user') },
 
   getCachedUser: () => JSON.parse(localStorage.getItem('user') || '{}'),
 
-  // write the cached user and notify listeners (Nav, Dashboard) in this tab
   setCachedUser: (user) => {
     localStorage.setItem('user', JSON.stringify(user))
     window.dispatchEvent(new Event(USER_UPDATED))
@@ -86,6 +102,7 @@ export const technologyService = {
 export const innovationService = {
   myAssessment: () => api.get('/api/innovation/assessment/my'),
   assessment: (query) => api.get('/api/innovation/assessment', { params: { query } }),
+  assessmentFor: (userId) => api.get(`/api/innovation/assessment/user/${userId}`),
 }
 
 export const commercializationService = {
@@ -93,11 +110,69 @@ export const commercializationService = {
   forQuery: (query) => api.get('/api/commercialization', { params: { query } }),
 }
 
+const reportParams = ({ query, subjectId } = {}) => ({
+  ...(query ? { query } : {}),
+  ...(subjectId ? { subject_id: subjectId } : {}),
+})
+
+export const reportService = {
+  catalogue: () => api.get('/api/reports'),
+  preview: (kind, opts) => api.get(`/api/reports/${kind}`,
+    { params: reportParams(opts) }),
+
+  download: async (kind, format, opts) => {
+    const res = await api.get(`/api/reports/${kind}`, {
+      params: { format, ...reportParams(opts) },
+      responseType: 'blob',
+    })
+    const match = /filename="([^"]+)"/.exec(res.headers['content-disposition'] || '')
+    const name = match ? match[1] : `${kind}.${format}`
+    const url = URL.createObjectURL(res.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = name
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    return name
+  },
+}
+
+export const notificationService = {
+  feed: (params = {}) => api.get('/api/notifications', { params }),
+  unreadCount: () => api.get('/api/notifications/unread-count'),
+  markRead: (id) => api.put(`/api/notifications/${id}/read`),
+  markAllRead: () => api.post('/api/notifications/read-all'),
+  dismiss: (id) => api.delete(`/api/notifications/${id}`),
+  broadcast: (data) => api.post('/api/notifications/broadcast', data),
+  announcements: () => api.get('/api/notifications/announcements'),
+  editAnnouncement: (key, data) =>
+    api.patch(`/api/notifications/announcements/${encodeURIComponent(key)}`, data),
+  withdrawAnnouncement: (key) =>
+    api.delete(`/api/notifications/announcements/${encodeURIComponent(key)}`),
+}
+
 export const adminService = {
   listUsers: () => api.get('/api/users/all'),
+  recommendationStats: () => api.get('/api/users/analytics/recommendations'),
+  pipelineStats: () => api.get('/api/users/analytics/pipeline'),
   changeRole: (userId, role) => api.put(`/api/users/${userId}/role`, { role }),
+  setSuperuser: (userId, isSuperuser) =>
+    api.put(`/api/users/${userId}/superuser`, { is_superuser: isSuperuser }),
+  auditLog: (limit = 20) => api.get('/api/users/audit', { params: { limit } }),
   getUserProfile: (userId) => api.get(`/api/profiles/${userId}`),
   deleteUser: (userId) => api.delete(`/api/users/${userId}`),
+
+  createOpportunity: (data) => api.post('/api/funding', data),
+  updateOpportunity: (id, data) => api.put(`/api/funding/${id}`, data),
+  deleteOpportunity: (id) => api.delete(`/api/funding/${id}`),
+  dataHealth: () => api.get('/api/admin/data-health'),
+
+  passwordResets: () => api.get('/api/admin/password-resets'),
+  waitingResets: () => api.get('/api/admin/password-resets/waiting'),
+  approveReset: (id) => api.post(`/api/admin/password-resets/${id}/approve`),
+  cancelReset: (id) => api.post(`/api/admin/password-resets/${id}/cancel`),
 }
 
 export const extractErrorMessage = (err, defaultMsg = 'An error occurred') => {

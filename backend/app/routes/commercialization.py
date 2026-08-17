@@ -1,10 +1,4 @@
-"""Commercialization recommendations for a technology.
-
-The advice is derived from the same pass as the innovation score (see
-`services.assessment`), so the two modules can never disagree about one user.
-This route returns only the commercialization half plus the score itself, which
-the page shows as a tie-back to the assessment it came from.
-"""
+"""Commercialization recommendations for a technology."""
 from fastapi import APIRouter, Depends, Query
 import httpx
 from sqlalchemy.orm import Session
@@ -13,6 +7,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.services import assessment, trends
+from app.schemas.common import MAX_QUERY_LENGTH
 
 router = APIRouter(prefix="/api/commercialization",
                    tags=["Commercialization Recommendations"])
@@ -24,7 +19,6 @@ def _payload(score: dict) -> dict:
         "query": score["query"],
         "pathway": comm["pathway"],
         "recommendations": comm["recommendations"],
-        # context, not a second analysis: the page links back to the full score
         "innovation_score": score["innovation_score"],
         "rating": score["rating"],
         "stage": score["signals"]["stage"],
@@ -33,7 +27,7 @@ def _payload(score: dict) -> dict:
 
 @router.get("")
 async def recommend_for_technology(
-    query: str = Query(..., min_length=2, description="Technology / topic / keyword"),
+    query: str = Query(..., min_length=2, max_length=MAX_QUERY_LENGTH, description="Technology / topic / keyword"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

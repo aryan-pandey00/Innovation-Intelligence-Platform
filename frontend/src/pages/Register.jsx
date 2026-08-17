@@ -2,36 +2,30 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { authService, extractErrorMessage } from '../services/api'
 import AuthShell from '../components/AuthShell'
+import SecurityQuestionFields from '../components/SecurityQuestionFields'
 import { IconEye, IconEyeOff } from '../components/ui/icons'
+import { ROLE_LABEL } from '../roles'
 
-/** The role decides which modules and dashboard you get, so it needs explaining
- *  rather than being a bare dropdown. */
-/* Both hints fit one line each. At two lines they added ~36px to a form whose last
-   line already fell below the fold, and neither needed the length — the second was
-   also the app's only "commercialization" among British spellings elsewhere. */
 const ROLES = [
-  {
-    value: 'researcher',
-    label: 'Researcher',
-    hint: 'Funding, trends and patent analysis for your published work.',
-  },
-  {
-    value: 'startup_founder',
-    label: 'Startup Founder',
-    hint: 'Funding, accelerators and routes to commercialisation.',
-  },
-]
+  { value: 'researcher', hint: 'Funding, trends and patent analysis for your published work.' },
+  { value: 'startup_founder', hint: 'Funding, accelerators and routes to commercialisation.' },
+].map((r) => ({ ...r, label: ROLE_LABEL[r.value] }))
 
 export default function Register() {
   const [form, setForm] = useState({
     email: '', full_name: '', password: '', role: 'researcher', organization: '',
   })
+  const [questions, setQuestions] = useState([
+    { question: '', answer: '' }, { question: '', answer: '' },
+  ])
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
 
   const change = (e) => setForm({ ...form, [e.target.name]: e.target.value })
+  const changeQ = (i, field, value) =>
+    setQuestions(questions.map((q, j) => (j === i ? { ...q, [field]: value } : q)))
 
   const submit = async (e) => {
     e.preventDefault()
@@ -39,7 +33,9 @@ export default function Register() {
     setBusy(true)
     setError('')
     try {
-      const res = await authService.register(form)
+      const res = await authService.register({
+        ...form, security_questions: questions,
+      })
       localStorage.setItem('token', res.data.access_token)
       authService.setCachedUser(res.data.user)
       navigate('/portfolio')
@@ -51,6 +47,7 @@ export default function Register() {
 
   return (
     <AuthShell
+      wide
       title="Create your account"
       subtitle="Takes a minute. You can fill in your research profile next."
       footer={<>Already registered? <Link to="/login">Sign in</Link></>}
@@ -71,7 +68,7 @@ export default function Register() {
           <label htmlFor="password">Password</label>
           <div className="input-affix">
             <input id="password" name="password" type={showPassword ? 'text' : 'password'}
-                   autoComplete="new-password" minLength={6} required
+                   autoComplete="new-password" minLength={8} maxLength={72} required
                    value={form.password} onChange={change} />
             <button type="button" className="affix-btn"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -80,13 +77,23 @@ export default function Register() {
               {showPassword ? <IconEyeOff size={17} /> : <IconEye size={17} />}
             </button>
           </div>
-          <p className="field-help">At least 6 characters.</p>
+          <p className="field-help">At least 8 characters.</p>
         </div>
         <div className="field">
           <label htmlFor="organization">Organisation <span className="optional">optional</span></label>
           <input id="organization" name="organization"
                  value={form.organization} onChange={change} />
         </div>
+
+        <fieldset className="field signup-questions">
+          <legend>If you forget your password</legend>
+          <p className="field-help" style={{ marginTop: 0 }}>
+            No email is sent, so an administrator uses these to check it is you.{' '}
+            <strong>Pick answers you will still know in a year.</strong>
+          </p>
+          <SecurityQuestionFields pairs={questions} onChange={changeQ}
+                                  idPrefix="signup" required />
+        </fieldset>
 
         <fieldset className="field role-choice">
           <legend>I am a</legend>
@@ -100,9 +107,6 @@ export default function Register() {
               </span>
             </label>
           ))}
-          {/* No role policy here. It named two roles this form cannot grant, to a
-              reader who has never seen either term, and could not change what they
-              do next — both choices they can make are already above. */}
         </fieldset>
 
         <button type="submit" disabled={busy}>
