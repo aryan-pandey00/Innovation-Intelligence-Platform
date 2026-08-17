@@ -78,6 +78,11 @@ app.include_router(notifications.router)
 app.include_router(reports.router)
 
 
+# HEAD as well as GET on all three. FastAPI's APIRoute does not add HEAD for a GET route
+# the way plain Starlette does, so these answered 405 to the request most uptime monitors
+# send by default. Registered as a second route, kept out of the schema: one route
+# carrying both methods makes FastAPI emit the same operation id twice.
+@app.head("/", include_in_schema=False)
 @app.get("/")
 def root():
     return {
@@ -87,12 +92,14 @@ def root():
     }
 
 
+@app.head("/health", include_in_schema=False)
 @app.get("/health", tags=["health"])
 def health():
     """Liveness: is this process answering?"""
     return {"status": "ok", "version": app.version}
 
 
+@app.head("/health/ready", include_in_schema=False)
 @app.get("/health/ready", tags=["health"])
 def readiness():
     """Readiness: can this process serve traffic?"""

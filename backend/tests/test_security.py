@@ -68,6 +68,26 @@ def test_the_public_surface_is_actually_public(client):
         assert client.request(method, path).status_code == 200, path
 
 
+def test_the_health_endpoints_answer_a_head_request(client):
+    """Uptime monitors send HEAD, and FastAPI does not add it to a GET route.
+
+    Plain Starlette adds HEAD wherever GET is allowed; FastAPI's `APIRoute` does not.
+    So these answered 405 to the default request of most monitoring services, and a
+    monitor pointed at them would have reported the service down permanently while it
+    was serving traffic perfectly — a failure that is invisible from the inside and
+    lasted 45 days on another deployment before it was noticed.
+
+    Asserted rather than left to the monitor's configuration, because the endpoint
+    should behave the way every health checker expects rather than depending on one
+    of them being set up correctly.
+    """
+    for path in ("/", "/health", "/health/ready"):
+        response = client.head(path)
+        assert response.status_code != 405, (
+            f"HEAD {path} is refused; a monitor would read the service as down")
+        assert response.status_code in (200, 503), f"HEAD {path} -> {response.status_code}"
+
+
 def test_the_data_health_report_never_exposes_the_api_credentials(client, db,
                                                                   monkeypatch):
     """Configured is a boolean."""
