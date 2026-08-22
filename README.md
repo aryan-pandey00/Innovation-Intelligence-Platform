@@ -4,8 +4,8 @@ A platform that helps researchers, startup founders and R&D teams find relevant
 funding, track research trends, and assess the patent and innovation landscape of a
 technology.
 
-**Live demo:** _<!-- add the deployed URL here once it is up -->_ ·
-**API docs:** `/docs` on the running service
+**Live demo:** <https://innovation-intelligence-platform.vercel.app/> ·
+**API docs:** [`/docs`](https://innovation-intelligence-platform.vercel.app/docs)
 
 > Free-tier hosting sleeps when idle, so the first request after a quiet period takes
 > up to a minute to wake the API. The page itself loads immediately.
