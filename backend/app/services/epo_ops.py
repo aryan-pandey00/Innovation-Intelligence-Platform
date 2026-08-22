@@ -110,7 +110,7 @@ def cpc_for(term: str) -> str | None:
 
 
 def _cql_cpc(expression: str) -> str:
-    """A CPC expression as CQL, e.g."""
+    """A CPC expression as CQL: "H01M or H01G" becomes "(cpc=H01M or cpc=H01G)"."""
     codes = [c.strip() for c in expression.split(" or ") if c.strip()]
     return "(" + " or ".join(f"cpc={c}" for c in codes) + ")"
 
@@ -248,7 +248,7 @@ def _applicants(biblio: dict) -> list[str]:
 
 
 def _classifications(biblio: dict) -> list[str]:
-    """IPC codes normalised to subclass level (e.g."""
+    """IPC codes cut to subclass level: "H01M  10/052" becomes "H01M"."""
     node = biblio.get("classifications-ipcr") or {}
     codes: list[str] = []
     for entry in _as_list(node.get("classification-ipcr")):

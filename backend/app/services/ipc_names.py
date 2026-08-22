@@ -97,7 +97,7 @@ def name_for(code: str | None) -> str | None:
 
 
 def describe(code: str | None) -> str | None:
-    """Label including the code, e.g."""
+    """Label carrying the code: "Batteries & fuel cells (H01M)"."""
     label = name_for(code)
     if not label:
         return None
