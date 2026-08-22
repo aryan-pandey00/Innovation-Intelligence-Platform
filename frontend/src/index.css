@@ -570,6 +570,10 @@ input:-webkit-autofill:focus {
                color: #e2e8f0; font-size: 12px; font-weight: 400; font-style: normal; line-height: 1.45;
                text-align: left; text-transform: none; letter-spacing: 0; border-radius: var(--radius-sm);
                box-shadow: var(--shadow-md); z-index: 20; }
+/* The bubble's own z-index only orders it inside its card: the entry animation leaves a
+   filled transform on every card, so each card is its own stacking context. */
+.stat-grid > :has(.hint-bubble), .dash-grid > :has(.hint-bubble),
+.reco-grid > :has(.hint-bubble), .module-cards > :has(.hint-bubble) { z-index: 30; }
 
 .ranked { list-style: none; margin: 0; padding: 0; }
 .ranked li { display: grid; grid-template-columns: 20px minmax(0, 1fr) var(--value-w, auto); gap: 10px;
@@ -777,6 +781,9 @@ input:-webkit-autofill:focus {
 .check-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 5px 0; }
 .check-list .done { color: var(--success); font-weight: 700; }
 .check-list .todo { color: var(--muted); }
+/* Full width, so the steps run across rather than down a narrow strip of a wide card. */
+.route-card .check-list { display: grid; gap: 2px 22px;
+                          grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
 .profile-foot { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .profile-driving { font-size: 12.5px; color: var(--navy-700); line-height: 1.6; }
 .term-count { white-space: nowrap; }

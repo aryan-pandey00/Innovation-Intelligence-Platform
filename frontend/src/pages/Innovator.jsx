@@ -103,6 +103,12 @@ export default function Innovator() {
   const pubs = profile?.publications?.length ?? null
   const pats = profile?.patents?.length ?? null
 
+  const assessCard = (
+    <Assessment state={assessState} data={assessment} note={assessNote}
+                name={subject.full_name}
+                canAnalyse={canOpen(role, '/technology')} />
+  )
+
   return (
     <div className="dashboard">
       <PageHeader trail={<Link to={back.to}>← {back.label}</Link>}
@@ -153,15 +159,19 @@ export default function Innovator() {
         <StatCard value={pats ?? '—'} label="Patents" />
       </StatGrid>
 
-      <div className="dash-grid dash-grid-even dash-grid-top" style={{ marginTop: 20 }}>
-        <Assessment state={assessState} data={assessment} note={assessNote}
-                    name={subject.full_name}
-                    canAnalyse={canOpen(role, '/technology')} />
-        <div>
-          {assessState === 'ready' && <NextSteps data={assessment} />}
-          {assessState === 'ready' && <Measurements data={assessment} />}
-        </div>
-      </div>
+      {assessState === 'ready' ? (
+        <>
+          {/* Paired with the readings, not the route: both are label-and-value lists of
+              similar height, so the two columns finish level instead of one hanging. */}
+          <div className="dash-grid dash-grid-even" style={{ marginTop: 20 }}>
+            {assessCard}
+            <Measurements data={assessment} />
+          </div>
+          <NextSteps data={assessment} />
+        </>
+      ) : (
+        <div style={{ marginTop: 20 }}>{assessCard}</div>
+      )}
 
       <Card
         className="portfolio-card"
@@ -207,8 +217,10 @@ function Assessment({ state, data, note, name, canAnalyse }) {
   const s = data.signals || {}
   const factors = [...(data.components || [])]
     .sort((a, b) => b.weight - a.weight || b.score - a.score)
-  const ownPubs = s.own_publications ?? 0
-  const ownPats = s.own_patents ?? 0
+  // Zero terms are dropped: "0 publications" beside a stat card reading "Publications 2"
+  // reads as the page contradicting itself, though both figures are right.
+  const own = [(s.own_publications ?? 0) > 0 && plural(s.own_publications, 'publication'),
+               (s.own_patents ?? 0) > 0 && plural(s.own_patents, 'patent')].filter(Boolean)
 
   return (
     <Card
@@ -229,9 +241,8 @@ function Assessment({ state, data, note, name, canAnalyse }) {
         <div style={{ flex: 1 }}>
           <span className="rating-pill">{data.rating} potential</span>
           <p className="score-context">
-            {ownPubs + ownPats > 0
-              ? `Includes ${plural(ownPubs, 'publication')} and `
-                + `${plural(ownPats, 'patent')} of theirs about this technology.`
+            {own.length > 0
+              ? `Includes ${own.join(' and ')} of theirs about this technology.`
               : `Nothing in ${name}'s portfolio mentions this technology, so this `
                 + 'scores the field rather than their position in it.'}
           </p>
@@ -297,6 +308,7 @@ function NextSteps({ data }) {
 
   return (
     <Card
+      className="route-card"
       title="Route to market"
       sub={pathway?.title
         ? `${pathway.title} · ${plural(now.length, 'step')} outstanding`
