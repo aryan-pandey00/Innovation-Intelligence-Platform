@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -8,6 +8,8 @@ from app.core.security import decode_token
 from app.models.user import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+_READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
 def _issued_before_password_change(payload: dict, user: User) -> bool:
@@ -25,7 +27,8 @@ def _issued_before_password_change(payload: dict, user: User) -> bool:
     return issued_at < changed_at
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def get_current_user(request: Request, token: str = Depends(oauth2_scheme),
+                     db: Session = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -42,6 +45,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
     if _issued_before_password_change(payload, user):
         raise credentials_exception
+    if user.is_demo and request.method not in _READ_METHODS:
+        # The credentials are published, so the first visitor could otherwise change
+        # this account's password or delete it and take the demo down with it.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This is a read-only demo account. Register your own to make changes.")
     return user
 
 
@@ -60,6 +69,8 @@ def count_admins(db: Session) -> int:
 
 def self_delete_block(db: Session, user: User) -> str | None:
     """Why this account may not delete itself, or None if it may."""
+    if user.is_demo:
+        return "This is the public demo account, so it cannot be deleted."
     if is_super_admin(user) and count_super_admins(db) == 1:
         return ("You are the only super-admin. Grant super-admin to another "
                 "administrator before deleting this account.")

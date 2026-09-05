@@ -204,6 +204,7 @@ class UserResponse(BaseModel):
     role: UserRole
     original_role: UserRole
     is_superuser: bool = False
+    is_demo: bool = False
     organization: str | None
     created_at: datetime
 

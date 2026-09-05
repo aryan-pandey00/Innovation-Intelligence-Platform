@@ -40,7 +40,8 @@ export function SessionProvider({ children }) {
   }, [])
 
   return (
-    <SessionContext.Provider value={{ user, role: user?.role, verified, refresh }}>
+    <SessionContext.Provider value={{ user, role: user?.role,
+                                      isDemo: !!user?.is_demo, verified, refresh }}>
       {children}
     </SessionContext.Provider>
   )

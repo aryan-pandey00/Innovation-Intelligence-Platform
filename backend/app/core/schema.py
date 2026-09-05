@@ -10,6 +10,7 @@ from app.models import (  # noqa: F401
 
 _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("users", "is_superuser", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("users", "is_demo", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("notifications", "occurred_at", "TIMESTAMPTZ"),
     ("notifications", "dismissed_at", "TIMESTAMPTZ"),
     ("users", "password_changed_at", "TIMESTAMPTZ"),

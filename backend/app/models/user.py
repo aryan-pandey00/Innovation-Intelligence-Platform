@@ -40,6 +40,8 @@ class User(Base):
     original_role = Column(Enum(UserRole), default=UserRole.RESEARCHER, nullable=False)
     is_superuser = Column(Boolean, nullable=False, server_default="false",
                           default=False)
+    # Credentials published in the README, so this account is read-only.
+    is_demo = Column(Boolean, nullable=False, server_default="false", default=False)
     organization = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     password_changed_at = Column(DateTime(timezone=True), nullable=True)

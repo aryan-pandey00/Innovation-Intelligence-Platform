@@ -1,158 +1,163 @@
-# Innovation Intelligence Platform
+# Research Funding & Innovation Intelligence Platform
 
-A research funding and innovation intelligence platform for researchers, startup
-founders and R&D teams. It answers four questions about a technology field in one
-place: **who is funding it, where the research is going, who already owns the patents,
-and whether it is worth commercialising.**
+**Find the funding your work actually qualifies for, and know where it stands.**
 
-Built solo, end to end — database, API, analytics, frontend, tests and deployment.
+A researcher with a good idea has to answer three questions before applying for
+anything. Is there money open for this? Has somebody already patented it? Is the
+field growing or already crowded? Those answers live in three different places —
+grant portals, patent offices, publication databases — none of which know
+anything about each other, and none of which know anything about you.
 
-**Live demo:** <https://innovation-intelligence-platform.vercel.app/> &nbsp;·&nbsp;
-**API docs:** [`/docs`](https://innovation-intelligence-platform.vercel.app/docs)
+So the work gets done by hand. Searching portals one at a time, reading
+eligibility rules that mostly rule you out, and guessing at the rest.
 
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-Vite-61DAFB?logo=react&logoColor=black)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-JSONB-4169E1?logo=postgresql&logoColor=white)
-![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-299-success)
+This platform reads your research profile once and answers all three from it.
 
-> The API is on free-tier hosting that sleeps when idle, so the first request after a
-> quiet period takes up to a minute to wake it. The page itself loads immediately.
+[![Live demo](https://img.shields.io/badge/Live_demo-innovation--intelligence--platform.vercel.app-1e293b?style=for-the-badge&logo=vercel&logoColor=white)](https://innovation-intelligence-platform.vercel.app)
 
-![Landing page](docs/images/landing_page.png)
+## Try it
 
-![Researcher dashboard](docs/images/dashboard.png)
+| Email | Password |
+|---|---|
+| `ruchi@test.com` | `Demo_user` |
 
----
+A read-only account, so everything can be opened and nothing can be broken. It
+belongs to a gene-editing researcher, so the funding matches, the patent figures
+and the innovation score are all real output for a real field — not placeholder
+rows.
 
-## What it does
+> Free hosting sleeps when idle. The page opens straight away, but the first
+> sign-in after a quiet spell takes up to a minute to wake the API.
 
-Research output, patent activity and funding opportunities normally live in three
-separate places, and a researcher deciding whether to pursue a technology has to
-cross-reference them by hand. This platform joins them.
+<img src="docs/images/funding-matches.png" alt="Funding opportunities ranked against a research profile" width="680">
 
-A user describes their research profile once — subject areas, keywords, technology
-areas, region, existing publications and patents. Every part of the platform then works
-from that profile rather than asking again.
+## How it works
 
-| The user wants to know | What the platform gives them |
-| :--- | :--- |
-| What can I apply for? | Funding matched against their profile on subject overlap, region and keyword similarity, with eligibility actually checked rather than assumed |
-| Is this field growing? | A 12-year publication trend, which sub-fields dominate, which topics are rising fastest, and the most-cited papers |
-| Who already owns this? | How many patents exist in the field, how filings are trending, which organisations hold the most, and the main themes they group into |
-| How mature is the field? | An Emerging, Growing or Mature verdict, research growth set against patent growth, and how concentrated the ownership is |
-| How strong is my position? | A 0–100 innovation score built from five weighted factors, each one visible on its own |
-| What should I do next? | A recommended route to market — spin-out, partnership, licensing, or validate first — and a dated action list |
-| Can I show someone? | Nine reports tailored to the user's role, on screen and downloadable as a spreadsheet or a PDF |
+You describe your work once — research domains, keywords, technology areas,
+publications, patents, country. Every module then reads from that one profile.
 
-Every figure states what it was measured on. Nothing worked out from a sample is
-presented as a fact about the whole field.
+**Funding** is matched on two things at once. Tag overlap against the grant's own
+domains and keywords, and TF-IDF text similarity between your description and the
+call. Eligibility — role, country, deadline — is checked rather than assumed,
+so a grant you cannot apply for is marked as such instead of ranked third.
 
-### Four roles, four different surfaces
+**Research trends** come from live OpenAlex data: publication growth over twelve
+years, the busiest sub-fields, which topics are rising fastest, and the most
+cited work in your area.
 
-| Role | Has a portfolio | What they see |
-| :--- | :---: | :--- |
-| `researcher` | Yes | Funding, trends, patents, assessment, commercialisation |
-| `startup_founder` | Yes | The same modules, with founder-facing advice |
-| `innovation_manager` | No | A triage list across the innovators they oversee |
-| `admin` | No | User management, platform health, database statistics |
+**Patents** come from the EPO's Open Patent Services. Field size, filing history,
+and who actually holds the IP — queried per applicant across the whole corpus
+where the source allows it, and marked as sample-based where it does not, so a
+ranking never quietly mixes the two. Filings are grouped into themes with TF-IDF
+and K-means, each named by the classification code its patents share.
 
-The two roles that own a portfolio get identical scores from identical modules and
-**different advice** — a researcher is told to contact their technology transfer office,
-a founder to contact a patent attorney before the next public demo. Anyone can register
-as one of those two roles; the other two are assigned.
+**An innovation score** puts those signals together into one number out of 100,
+from five weighted factors:
 
----
+```
+research novelty 30%  ·  patent strength 20%  ·  market potential 20%
+technology maturity 15%  ·  funding relevance 15%
+```
 
-## Technology stack
+**A route to market** follows from the score — spin-out, partnership, licensing,
+or validate first — split into what to do next and what is worth knowing, with a
+prior-art warning where publishing before filing would put a patent at risk.
 
-| Layer | Technologies |
-| :--- | :--- |
-| **Frontend** | React (Vite), Recharts |
-| **Backend** | FastAPI, SQLAlchemy 2, Pydantic v2, async HTTPX |
-| **Database** | PostgreSQL, with JSONB columns for subject areas, keywords and eligibility rules |
-| **Auth** | JWT with role-based access control, bcrypt password hashing |
-| **Analytics** | scikit-learn — TF-IDF, K-means clustering, cosine similarity |
-| **Testing & deployment** | pytest against a real PostgreSQL, GitHub Actions, Docker Compose, nginx |
+<img src="docs/images/innovation-score.png" alt="The innovation score and the five factors behind it" width="680">
 
-**Where the data comes from.** OpenAlex for publications, trends and citations. EPO Open
-Patent Services for patent counts, applicants and classification codes. Grants.gov,
-World Bank and UKRI for live funding search, plus **40 curated funding opportunities**
-covering NSF, NIH, Horizon Europe, SBIR and climate and AI grants, because no single
-free API covers global grants comprehensively. **23 technology topics come pre-seeded**,
-so the platform runs with no API keys required.
+## Who uses it
 
----
+| | |
+|---|---|
+| **Researcher** | Owns a portfolio. Gets matched funding, field trends, the patent landscape, a score and a route to market |
+| **Startup founder** | Same portfolio and the same score, different advice — a founder is told to talk to a patent attorney before the next public demo, a researcher to talk to their technology transfer office |
+| **Innovation manager** | Owns no portfolio. Gets a pipeline of every monitored innovator, what each works on, and the best funding open to them |
+| **Administrator** | Platform health, the funding catalogue, account and role management, and the password-reset queue |
 
-## How it was built
+<img src="docs/images/pipeline.png" alt="The innovation manager's pipeline" width="680">
 
-The five decisions that shaped the project.
+## The parts that matter
 
-**Patent counts and patent text come from different data.** EPO returns a count for a
-whole field in one cheap request, but reading the records themselves is slow. So counts
-use the entire field, while anything that needs the text inside a patent uses a sample
-of 1,100 records — 100 per year across 11 years, so no single year dominates. Every
-figure on screen says which of the two it came from.
+**Every number says what it was measured on.** Patent counts use the entire
+corpus, because the EPO returns a total in one cheap request. Anything needing the
+text *inside* a patent uses a date-balanced sample of up to 1,100 records — 100 per
+year across eleven years, so no single year dominates. Cards state which they used.
+Nothing derived from a sample is presented as a whole-field fact.
 
-**The slow analysis runs once, not on every request.** Clustering, counting patents per
-organisation and working out ownership concentration all happen ahead of time and are
-stored against a fingerprint of their input, so pages load at the same speed whether the
-sample is small or large.
+**The score cannot saturate.** Corpus sizes are normalised on a log scale and
+growth through tanh. Without that, any field past a certain size scores identical
+full marks and the factor stops carrying information.
 
-**The security test reads the routing table rather than a checklist.** It walks every
-endpoint the application actually serves and fails the build if one of them answers a
-caller who is not signed in, or if an admin route answers an ordinary account. A
-hand-written list of things to check always misses the endpoint nobody remembered.
+**Recovery works without email.** The platform sends none, so a forgotten password
+is recovered by an administrator's judgement instead of a link. Two security
+questions give them something to weigh, and the browser holds a server-minted
+claim so the new password is set in the page that never closed. The answers are
+evidence, not a key — getting both right approves nothing by itself, because two
+questions are a few hundred plausible guesses and would otherwise be a weaker door
+than the password they protect.
 
-**Reports are built once on the server and rendered three ways.** The screen, the
-spreadsheet and the PDF all read from the same structure, so a downloaded file cannot
-show a number the screen never did. Spreadsheet cells are real numbers with formatting
-applied, so they still sort and total.
+**Being unknown looks the same as being known.** When the address is not registered,
+sign-in still hashes a dummy password, so the expensive step runs either way and
+response time cannot reveal who has an account. The recovery flow answers an
+invented address exactly as it answers a real one, including the status poll.
 
-**Tests run against real PostgreSQL, including in CI.** The database uses JSONB columns
-and PostgreSQL-only insert behaviour, so swapping in SQLite for the test suite would
-mean testing code the deployed version never runs.
+**The tests walk the app rather than a list.** A route census enumerates every
+endpoint the application actually serves and fails if one answers an
+unauthenticated caller, or if an admin route answers an ordinary account. A
+hand-written checklist reports full coverage while quietly going out of date; a
+derived one cannot.
 
----
+**Slow sources are seeded, not fetched.** Clustering, applicant tallies and
+ownership are computed ahead of time and stored against a content hash, so no page
+load waits on a rate-limited API. 23 technology topics ship pre-seeded and the app
+runs from that cache with no API keys at all.
+
+## Built with
+
+| | |
+|---|---|
+| **FastAPI** — Python | Requests are validated by Pydantic before the code sees them, the OpenAPI docs generate themselves, and async matters when one page calls several external sources |
+| **PostgreSQL** — SQLAlchemy 2 | Profiles, publications, patents and funding are linked records, and `JSONB` holds the domain and eligibility lists without a table each |
+| **React** — Vite, React Router, Recharts | Charts draw as SVG so they stay sharp at any size, and protected routes keep the unauthenticated out of the shell — though the real check is always on the server |
+| **scikit-learn** | TF-IDF and cosine similarity for matching, K-means for grouping patents into themes |
+| **OpenAlex · EPO OPS · Grants.gov** | Real publication and patent data, plus 40 curated funding opportunities that ship with the repo, since no free API covers global grants properly |
+| **openpyxl · ReportLab** | Nine reports render on screen, as a spreadsheet and as a PDF from one structure built on the server, so an export cannot state a figure the screen never showed |
+| **Docker · GitHub Actions** | Every push builds both images, runs the frontend build, and runs 301 tests against a real PostgreSQL |
+| **Vercel · Render · Neon** | Frontend, API and database. Requests are same-origin, so no cross-origin exposure is needed |
 
 ## Running it locally
 
-### With Docker
+**1.** Create a database and put its URL in `backend/.env` — see `.env.example`.
 
-**Needs:** Docker with Compose v2.
-
-```bash
-cp .env.example .env
-# Fill in POSTGRES_PASSWORD and SECRET_KEY. Compose refuses to start without them.
-python -c "import secrets; print(secrets.token_urlsafe(48))"   # generate SECRET_KEY
-
-docker compose up --build
-docker compose exec api python -m scripts.seed_funding
-docker compose exec api python -m scripts.create_admin you@example.org "Your Name" <password> --super
-```
-
-Open **http://localhost:8080**. API documentation is proxied at `/docs`.
-
-### Without Docker
-
-**Needs:** Python 3.10+, Node.js 18+, PostgreSQL 14+. Create the database and put its
-URL in `backend/.env` (see `.env.example`).
+**2.** Start the API:
 
 ```bash
 cd backend
-python -m venv venv && venv\Scripts\activate     # Linux/macOS: source venv/bin/activate
+python -m venv venv
+venv\Scripts\activate          # Linux/macOS: source venv/bin/activate
 pip install -r requirements.txt
-python -m scripts.seed_funding                   # 40 curated funding opportunities
-python -m scripts.create_admin you@example.org "Your Name" <password> --super
-uvicorn app.main:app --reload                    # http://localhost:8000, docs at /docs
 
-cd ../frontend
-npm install && npm run dev                       # http://localhost:5173, proxies /api
+python -m scripts.seed_funding
+python -m scripts.create_admin you@example.org "Your Name" <password> --super
+uvicorn app.main:app --reload
 ```
 
-The database tables are created and kept up to date at startup.
+Runs on `http://localhost:8000`, with interactive docs at `/docs`. The schema is
+brought up to date at startup, so there is no migration step to remember.
+
+**3.** Start the frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Runs on `http://localhost:5173` and proxies `/api` to the backend.
+
+**Or the whole stack in containers:** `cp .env.example .env`, fill in
+`POSTGRES_PASSWORD` and `SECRET_KEY`, then `docker compose up --build`. Compose
+refuses to start without them.
 
 ### Tests
 
@@ -162,21 +167,22 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-**299 tests across 15 files**, roughly two minutes. The suite builds and drops its own
-separate test database and refuses to run against the development one. It covers sign-in
-and roles, privilege escalation, rate limiting, the audit trail, notifications, report
-generation, database setup, and the analytics figures themselves.
+301 tests across 15 files, roughly five minutes, against a real PostgreSQL — the
+schema uses `JSONB` and the code uses Postgres-only `INSERT ... ON CONFLICT`, so a
+substitute database would mean testing code the deployment never runs. A separate
+`<database>_test` database is created and dropped by the suite, so the development
+database is never touched.
 
----
+### Refreshing patent data
 
-## Documentation
+The patent modules read from the cache in `backend/app/data/`, so they work out of
+the box. To rebuild or add a technology, put EPO OPS credentials in `backend/.env`
+and run:
 
-| | |
-| :--- | :--- |
-| **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** | What each role can see and do, and how to read every figure |
-| **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** | Containers, settings, health checks, AWS and Azure, known limits |
-| **[docs/TESTING.md](docs/TESTING.md)** | How to run the suite, what it covers, and why it needs PostgreSQL |
-| `/docs` on a running server | Interactive API documentation for every endpoint |
+```bash
+python -m scripts.seed_patent_series --all
+python -m scripts.seed_patent_series "solid-state battery"
+```
 
-Behind it: 69 API endpoints across 13 route modules, 21 analytics service modules, and
-17 frontend pages.
+OPS allows a few searches per minute, so a topic takes a few minutes. The script is
+resumable — finished topics are skipped.

@@ -162,6 +162,54 @@ def test_no_route_under_api_admin_answers_an_ordinary_account(client, db):
                          + "\n".join(reached))
 
 
+def test_a_demo_account_is_refused_by_every_writing_route(client, db):
+    """Its credentials are published, so a visitor must not be able to change anything.
+
+    A census rather than a spot check on the two obvious routes. Changing the password
+    or deleting the account would take the public demo down permanently, but so would
+    a hundred edits to the profile the README points at, and the next writing endpoint
+    somebody adds would not be on a hand-written list.
+    """
+    user = make_user(db, "demo@example.org", UserRole.RESEARCHER)
+    user.is_demo = True
+    db.commit()
+    headers = auth_header(client, "demo@example.org")
+
+    wrote, checked = [], 0
+    for declared, path, method in _callable_routes():
+        if method in ("GET", "HEAD", "OPTIONS") or (declared, method) in PUBLIC:
+            continue
+        checked += 1
+        response = client.request(method, path, headers=headers, json={})
+        if response.status_code != 403:
+            wrote.append(f"{method} {declared} -> {response.status_code}")
+
+    assert checked >= 15, (
+        f"only {checked} writing routes were walked — the census is not seeing them")
+    assert not wrote, ("a read-only demo account was not refused by:\n"
+                       + "\n".join(wrote))
+
+    # Without this the census would pass on an account that is refused for some other
+    # reason, and prove nothing about the flag.
+    make_user(db, "ordinary@example.org", UserRole.RESEARCHER)
+    ordinary = client.post("/api/auth/password",
+                           headers=auth_header(client, "ordinary@example.org"),
+                           json={})
+    assert ordinary.status_code != 403, (
+        "an unflagged researcher is refused here too, so the census above is vacuous")
+
+
+def test_a_demo_account_can_still_read(client, db):
+    """Read-only has to leave the demo worth visiting."""
+    user = make_user(db, "reader@example.org", UserRole.RESEARCHER)
+    user.is_demo = True
+    db.commit()
+    headers = auth_header(client, "reader@example.org")
+
+    assert client.get("/api/auth/me", headers=headers).status_code == 200
+    assert client.get("/api/reports", headers=headers).status_code == 200
+
+
 def test_cors_grants_only_the_configured_origins(client):
     allowed = settings.cors_origins[0]
     response = client.get("/health", headers={"Origin": allowed})
